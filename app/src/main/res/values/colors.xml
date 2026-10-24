@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="midnight_navy">#0B1020</color>
+    <color name="deep_indigo">#171B3A</color>
+    <color name="electric_violet">#7165FF</color>
+    <color name="cyan">#4DE8E0</color>
+    <color name="lime">#D7FF72</color>
+    <color name="muted_blue_grey">#A8B1C7</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+</resources>

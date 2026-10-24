@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Left Book Wing / Flowing Knowledge Ribbon -->
+    <path
+        android:fillColor="#7165FF"
+        android:pathData="M51,68 C38,68 28,63 22,58 C22,46 28,40 38,40 C44,40 48,43 51,46 Z" />
+
+    <!-- Left Page Inner Luminous Curve -->
+    <path
+        android:fillColor="#8C82FF"
+        android:pathData="M51,64 C40,64 32,60 27,56 C27,48 32,44 40,44 C45,44 49,46 51,49 Z" />
+
+    <!-- Right Book Wing / Flowing Knowledge Ribbon -->
+    <path
+        android:fillColor="#7165FF"
+        android:pathData="M57,68 C70,68 80,63 86,58 C86,46 80,40 70,40 C64,40 60,43 57,46 Z" />
+
+    <!-- Right Page Inner Luminous Curve -->
+    <path
+        android:fillColor="#8C82FF"
+        android:pathData="M57,64 C68,64 76,60 81,56 C81,48 76,44 68,44 C63,44 59,46 57,49 Z" />
+
+    <!-- Spine Accent -->
+    <path
+        android:fillColor="#4DE8E0"
+        android:pathData="M53,46 L55,46 L55,70 L53,70 Z" />
+
+    <!-- Connected Knowledge Lines -->
+    <path
+        android:strokeColor="#4DE8E0"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,46 L54,34 M54,34 L42,24 M54,34 L66,24" />
+
+    <!-- Central Knowledge Particles / Luminous Nodes -->
+    <path
+        android:fillColor="#4DE8E0"
+        android:pathData="M54,31 C55.66,31 57,32.34 57,34 C57,35.66 55.66,37 54,37 C52.34,37 51,35.66 51,34 C51,32.34 52.34,31 54,31 Z" />
+
+    <path
+        android:fillColor="#7165FF"
+        android:pathData="M42,21 C43.66,21 45,22.34 45,24 C45,25.66 43.66,27 42,27 C40.34,27 39,25.66 39,24 C39,22.34 40.34,21 42,21 Z" />
+
+    <path
+        android:fillColor="#4DE8E0"
+        android:pathData="M66,21 C67.66,21 69,22.34 69,24 C69,25.66 67.66,27 66,27 C64.34,27 63,25.66 63,24 C63,22.34 64.34,21 66,21 Z" />
+
+    <!-- Sparkle Highlights -->
+    <path
+        android:fillColor="#D7FF72"
+        android:pathData="M54,20 L55,22 L57,23 L55,24 L54,26 L53,24 L51,23 L53,22 Z" />
+</vector>

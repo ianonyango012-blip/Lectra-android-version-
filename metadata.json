@@ -1,0 +1,6 @@
+{
+  "name": "LECTRA",
+  "description": "Smart study companion for university students to organize lecture materials, schedule revision, and master course topics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
