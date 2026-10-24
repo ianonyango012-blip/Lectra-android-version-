@@ -109,9 +109,10 @@ fun HomeScreen(
     val currentTimeInMinutes = uiState.currentHour * 60 + uiState.currentMinute
     val todayDayOfWeek = uiState.currentDayOfWeek
 
-    // 1. Classes scheduled for the current day in chronological order
+    // 1. Classes scheduled for the current day in chronological order (deduplicated)
     val allTodayClasses = uiState.classes
         .filter { it.dayOfWeek == todayDayOfWeek }
+        .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
         .sortedBy { it.startHour * 60 + it.startMinute }
 
     // 2. Active or upcoming classes today (end time has NOT passed)
@@ -129,13 +130,13 @@ fun HomeScreen(
     // 4. Find NEXT scheduled day with classes if no classes remain today
     val nextScheduledDayInfo = remember(uiState.classes, todayDayOfWeek, upcomingTodayClasses.isEmpty()) {
         if (upcomingTodayClasses.isEmpty() && uiState.classes.isNotEmpty()) {
-            // Scan subsequent days from tomorrow (offset 1 to 6)
             var foundDayNum: Int? = null
             var foundClasses: List<LectureClassEntity> = emptyList()
             for (offset in 1..6) {
                 val candidateDay = ((todayDayOfWeek - 1 + offset) % 7) + 1
                 val candidateClasses = uiState.classes
                     .filter { it.dayOfWeek == candidateDay }
+                    .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
                     .sortedBy { it.startHour * 60 + it.startMinute }
                 if (candidateClasses.isNotEmpty()) {
                     foundDayNum = candidateDay
@@ -151,20 +152,12 @@ fun HomeScreen(
     val todayPlannedSessions = uiState.sessions.filter { it.dayOfWeek == todayDayOfWeek }
     val todayCompletedSessions = todayPlannedSessions.count { it.isCompleted }
 
-    // Unread lecture materials (lastReadPage < totalPages)
     val unreadMaterials = uiState.materials.filter { it.lastReadPage < it.totalPages }
-
-    // Notes requiring review (unmastered topics where summaryNotes is not blank)
     val unmasteredTopicsWithNotes = uiState.courseTopics.filter { !it.isMastered && it.summaryNotes.isNotBlank() }
-
-    // Pending practice questions (hasAnswered == false)
     val pendingPracticeQuestions = uiState.quizzes.filter { !it.hasAnswered }
-
-    // Upcoming assessments (uncompleted tasks with deadlines)
     val upcomingAssessments = uiState.tasks.filter { !it.isCompleted }
         .sortedWith(compareBy({ it.dueDate == null }, { it.dueDate }))
 
-    // Weak revision areas (flashcards with AGAIN or HARD or unreviewed)
     val weakRevisionCards = uiState.flashcards.filter {
         it.lastRecallGrade == "AGAIN" || it.lastRecallGrade == "HARD" || it.repetitions == 0
     }
@@ -173,9 +166,9 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("home_screen_timetable_scroll"),
-        contentPadding = PaddingValues(bottom = 36.dp)
+        contentPadding = PaddingValues(bottom = 90.dp)
     ) {
-        // Today's Live Date & Academic Status Header
+        // 1. LECTRA Header & Today's Date & Lecture Timetable Summary
         item(key = "home_live_header") {
             TodayLiveHeader(
                 dayOfWeekNum = todayDayOfWeek,
@@ -186,9 +179,7 @@ fun HomeScreen(
             )
         }
 
-        // ==========================================
-        // SECTION 1: PRIORITY LECTURE TIMETABLE
-        // ==========================================
+        // 2 & 3. Today's Scheduled Classes Timetable
         item(key = "home_timetable_header") {
             TimetableSectionHeader(
                 hasClassesToday = upcomingTodayClasses.isNotEmpty(),
@@ -197,17 +188,15 @@ fun HomeScreen(
         }
 
         if (upcomingTodayClasses.isNotEmpty()) {
-            // Display today's active & upcoming classes in chronological order
             items(upcomingTodayClasses, key = { "home_class_${it.id}" }) { lectureClass ->
                 val classStartInMinutes = lectureClass.startHour * 60 + lectureClass.startMinute
                 val classEndInMinutes = lectureClass.endHour * 60 + lectureClass.endMinute
                 val isActiveNow = currentTimeInMinutes in classStartInMinutes..classEndInMinutes
 
-                // Find corresponding assignment(s) for this lecture
                 val classTasks = uiState.tasks.filter {
                     it.lectureClassId == lectureClass.id ||
                             (it.courseId == lectureClass.courseId && it.topicTitle.equals(lectureClass.topicOrLectureName, ignoreCase = true))
-                }
+                }.distinctBy { it.id }
 
                 ClassScheduleCard(
                     lectureClass = lectureClass,
@@ -218,7 +207,6 @@ fun HomeScreen(
                 )
             }
         } else {
-            // No classes remain today
             item(key = "home_no_classes_banner") {
                 NoClassesTodayBanner(
                     allTodayClassesCount = allTodayClasses.size,
@@ -227,7 +215,6 @@ fun HomeScreen(
                 )
             }
 
-            // Display the next scheduled classes if found
             if (nextScheduledDayInfo != null) {
                 val (nextDayNum, nextClasses) = nextScheduledDayInfo
                 item(key = "home_next_classes_header") {
@@ -237,7 +224,7 @@ fun HomeScreen(
                     val classTasks = uiState.tasks.filter {
                         it.lectureClassId == lectureClass.id ||
                                 (it.courseId == lectureClass.courseId && it.topicTitle.equals(lectureClass.topicOrLectureName, ignoreCase = true))
-                    }
+                    }.distinctBy { it.id }
                     ClassScheduleCard(
                         lectureClass = lectureClass,
                         isActiveNow = false,
@@ -249,9 +236,7 @@ fun HomeScreen(
             }
         }
 
-        // ==========================================
-        // SECTION 2: TODAY'S STUDY PROGRESS
-        // ==========================================
+        // 4. Today's Study Progress
         item(key = "home_progress_header") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionDividerTitle(
@@ -270,9 +255,7 @@ fun HomeScreen(
             )
         }
 
-        // ==========================================
-        // SECTION 3: COURSE PROGRESS
-        // ==========================================
+        // 5. Individual Course Progress
         item(key = "home_syllabus_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
@@ -298,9 +281,29 @@ fun HomeScreen(
             }
         }
 
-        // ==========================================
-        // SECTION 4: NOTES REQUIRING REVIEW
-        // ==========================================
+        // 6. Upcoming Assessments & Deadlines
+        item(key = "home_assessments_header") {
+            Spacer(modifier = Modifier.height(16.dp))
+            SectionDividerTitle(
+                title = "Upcoming Assessments & Deadlines",
+                subtitle = "${upcomingAssessments.size} active tasks scheduled"
+            )
+        }
+
+        if (upcomingAssessments.isEmpty()) {
+            item(key = "home_empty_assessments") {
+                EmptyNoticeCard("No upcoming assignment deadlines recorded.")
+            }
+        } else {
+            items(upcomingAssessments.take(4), key = { "home_task_${it.id}" }) { task ->
+                UpcomingAssessmentItemCard(
+                    task = task,
+                    onToggle = { onToggleTask(task) }
+                )
+            }
+        }
+
+        // 7. Notes Due for Review
         item(key = "home_notes_review_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
@@ -324,9 +327,7 @@ fun HomeScreen(
             }
         }
 
-        // ==========================================
-        // SECTION 5: UNREAD LECTURE MATERIALS (PDFs)
-        // ==========================================
+        // 8. Unread Lecture Materials
         item(key = "home_unread_materials_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
@@ -350,9 +351,7 @@ fun HomeScreen(
             }
         }
 
-        // ==========================================
-        // SECTION 6: PENDING PRACTICE QUESTIONS & WEAK REVISION
-        // ==========================================
+        // 9 & 10. Pending Practice Questions & Weak Revision Areas
         item(key = "home_revision_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
@@ -369,30 +368,6 @@ fun HomeScreen(
                 onStartQuiz = { onStartQuiz(null) },
                 onDrillWeakCards = { onStartFlashcardStudy(null) }
             )
-        }
-
-        // ==========================================
-        // SECTION 7: UPCOMING ASSESSMENTS
-        // ==========================================
-        item(key = "home_assessments_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Upcoming Assessments & Deadlines",
-                subtitle = "${upcomingAssessments.size} active tasks scheduled"
-            )
-        }
-
-        if (upcomingAssessments.isEmpty()) {
-            item(key = "home_empty_assessments") {
-                EmptyNoticeCard("No upcoming assignment deadlines recorded.")
-            }
-        } else {
-            items(upcomingAssessments.take(4), key = { "home_task_${it.id}" }) { task ->
-                UpcomingAssessmentItemCard(
-                    task = task,
-                    onToggle = { onToggleTask(task) }
-                )
-            }
         }
     }
 }

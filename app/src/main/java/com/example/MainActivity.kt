@@ -60,9 +60,27 @@ class MainActivity : ComponentActivity() {
         setContent {
             LectraTheme {
                 var showSplash by rememberSaveable { mutableStateOf(true) }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val prefs = remember { context.getSharedPreferences("lectra_prefs", android.content.Context.MODE_PRIVATE) }
+                var isOnboardingComplete by remember {
+                    mutableStateOf(prefs.getBoolean("onboarding_complete", false))
+                }
+                var isSemesterSetupComplete by remember {
+                    mutableStateOf(prefs.getBoolean("semester_setup_complete", false))
+                }
+
                 if (showSplash) {
                     SplashScreen(
                         onSplashFinished = { showSplash = false }
+                    )
+                } else if (!isOnboardingComplete) {
+                    com.example.ui.screens.OnboardingScreen(
+                        onOnboardingComplete = { isOnboardingComplete = true }
+                    )
+                } else if (!isSemesterSetupComplete) {
+                    com.example.ui.screens.SemesterSetupScreen(
+                        viewModel = viewModel(),
+                        onSetupComplete = { isSemesterSetupComplete = true }
                     )
                 } else {
                     LectraApp()

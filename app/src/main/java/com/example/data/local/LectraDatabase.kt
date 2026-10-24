@@ -66,11 +66,8 @@ abstract class LectraDatabase : RoomDatabase() {
     ) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            INSTANCE?.let { database ->
-                scope.launch(Dispatchers.IO) {
-                    populateInitialData(database)
-                }
-            }
+            // Production clean start: Do not auto-populate initial data on database creation.
+            // Users configure their semester via SemesterSetupScreen or load demo data explicitly via Settings.
         }
     }
 }

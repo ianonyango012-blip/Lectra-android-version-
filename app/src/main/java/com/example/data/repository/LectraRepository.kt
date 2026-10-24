@@ -108,7 +108,9 @@ class LectraRepository(
     }
 
     suspend fun resetAndReseedDatabase() {
-        database.clearAllTables()
-        com.example.data.local.populateInitialData(database)
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            database.clearAllTables()
+            com.example.data.local.populateInitialData(database)
+        }
     }
 }

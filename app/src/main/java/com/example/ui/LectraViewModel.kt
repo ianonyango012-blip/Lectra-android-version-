@@ -86,16 +86,6 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-        // Ensure database has initial data even if created on prior run without seed
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                if (db.courseDao().getCourseCount() == 0) {
-                    com.example.data.local.populateInitialData(db)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("LectraViewModel", "Error verifying initial database contents", e)
-            }
-        }
 
         // Observe local database flows
         viewModelScope.launch {
