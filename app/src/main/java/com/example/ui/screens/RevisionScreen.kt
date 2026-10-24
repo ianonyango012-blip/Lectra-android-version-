@@ -89,7 +89,7 @@ fun RevisionScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Revision Metrics Header
-        item {
+        item(key = "rev_metrics_header") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -150,7 +150,7 @@ fun RevisionScreen(
         }
 
         // Secondary Tabs
-        item {
+        item(key = "rev_tabs") {
             SecondaryTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = MaterialTheme.colorScheme.surface
@@ -170,7 +170,7 @@ fun RevisionScreen(
 
         if (selectedTab == 0) {
             // Flashcards Tab
-            item {
+            item(key = "rev_flashcards_header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -194,7 +194,7 @@ fun RevisionScreen(
             }
 
             if (flashcards.isNotEmpty()) {
-                item {
+                item(key = "rev_study_all_flashcards") {
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -236,7 +236,7 @@ fun RevisionScreen(
             }
 
             if (courses.isEmpty()) {
-                item {
+                item(key = "rev_empty_courses") {
                     Text("No enrolled courses yet.", style = MaterialTheme.typography.bodySmall)
                 }
             } else {
@@ -251,7 +251,7 @@ fun RevisionScreen(
             }
         } else {
             // Quizzes Tab
-            item {
+            item(key = "rev_quizzes_header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -277,7 +277,7 @@ fun RevisionScreen(
             }
 
             if (quizzes.isNotEmpty()) {
-                item {
+                item(key = "rev_study_all_quizzes") {
                     ElevatedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -329,7 +329,7 @@ fun RevisionScreen(
         }
 
         // AI Integration Readiness Card
-        item {
+        item(key = "rev_ai_readiness") {
             Spacer(modifier = Modifier.height(10.dp))
             AiReadinessInfoCard(aiStatus = aiStatus)
         }

@@ -176,7 +176,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(bottom = 36.dp)
     ) {
         // Today's Live Date & Academic Status Header
-        item {
+        item(key = "home_live_header") {
             TodayLiveHeader(
                 dayOfWeekNum = todayDayOfWeek,
                 currentHour = uiState.currentHour,
@@ -189,7 +189,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 1: PRIORITY LECTURE TIMETABLE
         // ==========================================
-        item {
+        item(key = "home_timetable_header") {
             TimetableSectionHeader(
                 hasClassesToday = upcomingTodayClasses.isNotEmpty(),
                 onAddClass = onQuickAddSession
@@ -219,7 +219,7 @@ fun HomeScreen(
             }
         } else {
             // No classes remain today
-            item {
+            item(key = "home_no_classes_banner") {
                 NoClassesTodayBanner(
                     allTodayClassesCount = allTodayClasses.size,
                     passedTodayCount = passedTodayClasses.size,
@@ -230,7 +230,7 @@ fun HomeScreen(
             // Display the next scheduled classes if found
             if (nextScheduledDayInfo != null) {
                 val (nextDayNum, nextClasses) = nextScheduledDayInfo
-                item {
+                item(key = "home_next_classes_header") {
                     NextScheduledClassesHeader(nextDayNum = nextDayNum, classCount = nextClasses.size)
                 }
                 items(nextClasses, key = { "home_next_class_${it.id}" }) { lectureClass ->
@@ -252,7 +252,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 2: TODAY'S STUDY PROGRESS
         // ==========================================
-        item {
+        item(key = "home_progress_header") {
             Spacer(modifier = Modifier.height(20.dp))
             SectionDividerTitle(
                 title = "Today's Study Progress",
@@ -260,7 +260,7 @@ fun HomeScreen(
             )
         }
 
-        item {
+        item(key = "home_progress_card") {
             TodayStudyProgressCard(
                 plannedCount = todayPlannedSessions.size,
                 completedCount = todayCompletedSessions,
@@ -273,7 +273,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 3: COURSE PROGRESS
         // ==========================================
-        item {
+        item(key = "home_syllabus_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
                 title = "Course Syllabus Progress",
@@ -282,7 +282,7 @@ fun HomeScreen(
         }
 
         if (uiState.courses.isEmpty()) {
-            item {
+            item(key = "home_empty_courses") {
                 EmptyNoticeCard("No enrolled courses yet. Tap '+ Course' to start.")
             }
         } else {
@@ -301,7 +301,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 4: NOTES REQUIRING REVIEW
         // ==========================================
-        item {
+        item(key = "home_notes_review_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
                 title = "Notes Requiring Review",
@@ -310,7 +310,7 @@ fun HomeScreen(
         }
 
         if (unmasteredTopicsWithNotes.isEmpty()) {
-            item {
+            item(key = "home_empty_notes") {
                 EmptyNoticeCard("All course notes reviewed and mastered! Excellent work.")
             }
         } else {
@@ -327,7 +327,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 5: UNREAD LECTURE MATERIALS (PDFs)
         // ==========================================
-        item {
+        item(key = "home_unread_materials_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
                 title = "Unread Lecture Materials",
@@ -336,7 +336,7 @@ fun HomeScreen(
         }
 
         if (unreadMaterials.isEmpty()) {
-            item {
+            item(key = "home_empty_materials") {
                 EmptyNoticeCard("You have finished reading all imported lecture slide decks.")
             }
         } else {
@@ -353,7 +353,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 6: PENDING PRACTICE QUESTIONS & WEAK REVISION
         // ==========================================
-        item {
+        item(key = "home_revision_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
                 title = "Revision & Weak Areas",
@@ -361,7 +361,7 @@ fun HomeScreen(
             )
         }
 
-        item {
+        item(key = "home_revision_card") {
             RevisionStatusCard(
                 pendingQuizCount = pendingPracticeQuestions.size,
                 weakCardsCount = weakRevisionCards.size,
@@ -374,7 +374,7 @@ fun HomeScreen(
         // ==========================================
         // SECTION 7: UPCOMING ASSESSMENTS
         // ==========================================
-        item {
+        item(key = "home_assessments_header") {
             Spacer(modifier = Modifier.height(16.dp))
             SectionDividerTitle(
                 title = "Upcoming Assessments & Deadlines",
@@ -383,7 +383,7 @@ fun HomeScreen(
         }
 
         if (upcomingAssessments.isEmpty()) {
-            item {
+            item(key = "home_empty_assessments") {
                 EmptyNoticeCard("No upcoming assignment deadlines recorded.")
             }
         } else {

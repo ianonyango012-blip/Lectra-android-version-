@@ -222,7 +222,7 @@ fun CourseDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
-                item {
+                item(key = "detail_syllabus_header") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -245,7 +245,7 @@ fun CourseDetailScreen(
                 }
 
                 if (units.isEmpty()) {
-                    item {
+                    item(key = "detail_empty_units") {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -289,7 +289,7 @@ fun CourseDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
-                item {
+                item(key = "detail_import_pdf_card") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -332,7 +332,7 @@ fun CourseDetailScreen(
                 }
 
                 if (materials.isEmpty()) {
-                    item {
+                    item(key = "detail_empty_materials") {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)

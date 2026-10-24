@@ -99,7 +99,7 @@ fun PlannerScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Days of the Week Selector Row
-            item {
+            item(key = "planner_days_selector") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -182,7 +182,7 @@ fun PlannerScreen(
             }
 
             // Day Sessions Header
-            item {
+            item(key = "planner_schedule_header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -212,7 +212,7 @@ fun PlannerScreen(
 
             // Sessions List for Selected Day
             if (selectedDaySessions.isEmpty()) {
-                item {
+                item(key = "planner_empty_sessions") {
                     OutlinedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
@@ -253,7 +253,7 @@ fun PlannerScreen(
             }
 
             // Upcoming Assignment & Exam Tasks
-            item {
+            item(key = "planner_tasks_header") {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -277,7 +277,7 @@ fun PlannerScreen(
             }
 
             if (tasks.isEmpty()) {
-                item {
+                item(key = "planner_empty_tasks") {
                     Text(
                         text = "No upcoming assignment deadlines recorded.",
                         style = MaterialTheme.typography.bodySmall,

@@ -65,7 +65,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Profile & Academic Term Card
-        item {
+        item(key = "settings_profile") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -115,7 +115,7 @@ fun SettingsScreen(
         }
 
         // Local Storage & Database Inventory
-        item {
+        item(key = "settings_storage") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -151,7 +151,7 @@ fun SettingsScreen(
         }
 
         // Student Privacy & AI Transparency
-        item {
+        item(key = "settings_privacy") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -189,7 +189,7 @@ fun SettingsScreen(
         }
 
         // Data Management / Reset Demo Data
-        item {
+        item(key = "settings_demo") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -222,7 +222,7 @@ fun SettingsScreen(
         }
 
         // App Version
-        item {
+        item(key = "settings_version") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
