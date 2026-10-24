@@ -56,6 +56,14 @@ class MainActivity : ComponentActivity() {
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
+        try {
+            if (com.google.firebase.FirebaseApp.getApps(this).isEmpty()) {
+                com.google.firebase.FirebaseApp.initializeApp(this)
+            }
+        } catch (e: Throwable) {
+            android.util.Log.w("LECTRA_AUTH", "FirebaseApp auto-init skipped: ${e.message}")
+        }
+
         enableEdgeToEdge()
         setContent {
             LectraTheme {

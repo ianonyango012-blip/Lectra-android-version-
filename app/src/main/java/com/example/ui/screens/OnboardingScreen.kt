@@ -1,17 +1,46 @@
 package com.example.ui.screens
 
 import android.content.Context
-import android.util.Log
+import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,34 +51,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.firebase.Firebase
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.auth
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.AuthViewModel
 
 @Composable
 fun OnboardingScreen(
-    onOnboardingComplete: () -> Unit
+    onOnboardingComplete: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(0) } // 0: Welcome / Google Sign-In, 1: Profile Setup
 
     var displayName by remember { mutableStateOf("") }
     var institution by remember { mutableStateOf("University of Technology") }
     var programme by remember { mutableStateOf("Computer Science & Engineering") }
     var yearOfStudy by remember { mutableStateOf("Year 3") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val prefs = remember { context.getSharedPreferences("lectra_prefs", Context.MODE_PRIVATE) }
 
@@ -69,7 +87,9 @@ fun OnboardingScreen(
         contentAlignment = Alignment.Center
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 480.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFF171B3A)
@@ -126,40 +146,61 @@ fun OnboardingScreen(
                         color = Color(0xFFE2E8F0)
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
-                    if (errorMessage != null) {
-                        Text(
-                            text = errorMessage!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFEF4444),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                    // Safe UI feedback banner for authentication errors
+                    if (authState.errorMessage != null) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = "Error",
+                                    tint = Color(0xFFF87171),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = authState.errorMessage!!,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = Color(0xFFF87171),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { authViewModel.clearError() },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = Color(0xFFF87171),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Button(
                         onClick = {
-                            isLoading = true
-                            errorMessage = null
-                            performGoogleSignIn(
-                                context = context,
-                                onSuccess = {
-                                    isLoading = false
-                                    val user = Firebase.auth.currentUser
-                                    if (user?.displayName != null) {
-                                        displayName = user.displayName!!
-                                    }
-                                    step = 1
-                                },
-                                onError = { err ->
-                                    isLoading = false
-                                    step = 1
-                                },
-                                onCancelled = {
-                                    isLoading = false
+                            val activity = context.findActivity()
+                            authViewModel.signInWithGoogle(activity) { resolvedName ->
+                                if (resolvedName.isNotBlank()) {
+                                    displayName = resolvedName
                                 }
-                            )
+                                step = 1
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -168,9 +209,9 @@ fun OnboardingScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF7165FF)
                         ),
-                        enabled = !isLoading
+                        enabled = !authState.isLoading
                     ) {
-                        if (isLoading) {
+                        if (authState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = Color.White,
@@ -184,17 +225,18 @@ fun OnboardingScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Continue with Google",
+                                text = "Create account with Google",
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                                 color = Color.White
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     TextButton(
                         onClick = {
+                            authViewModel.clearError()
                             step = 1
                         }
                     ) {
@@ -228,14 +270,7 @@ fun OnboardingScreen(
                         label = { Text("Your Name / Nickname") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4DE8E0),
-                            unfocusedBorderColor = Color(0xFF334155),
-                            focusedLabelColor = Color(0xFF4DE8E0),
-                            unfocusedLabelColor = Color(0xFF94A3B8),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
+                        colors = setupTextFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -246,14 +281,7 @@ fun OnboardingScreen(
                         label = { Text("University / Institution") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4DE8E0),
-                            unfocusedBorderColor = Color(0xFF334155),
-                            focusedLabelColor = Color(0xFF4DE8E0),
-                            unfocusedLabelColor = Color(0xFF94A3B8),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
+                        colors = setupTextFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -264,14 +292,7 @@ fun OnboardingScreen(
                         label = { Text("Programme / Major") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4DE8E0),
-                            unfocusedBorderColor = Color(0xFF334155),
-                            focusedLabelColor = Color(0xFF4DE8E0),
-                            unfocusedLabelColor = Color(0xFF94A3B8),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
+                        colors = setupTextFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -282,14 +303,7 @@ fun OnboardingScreen(
                         label = { Text("Year of Study / Term") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF4DE8E0),
-                            unfocusedBorderColor = Color(0xFF334155),
-                            focusedLabelColor = Color(0xFF4DE8E0),
-                            unfocusedLabelColor = Color(0xFF94A3B8),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
+                        colors = setupTextFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(28.dp))
@@ -326,49 +340,21 @@ fun OnboardingScreen(
     }
 }
 
-private fun performGoogleSignIn(
-    context: Context,
-    onSuccess: () -> Unit,
-    onError: (String) -> Unit,
-    onCancelled: () -> Unit
-) {
-    val credentialManager = CredentialManager.create(context)
-    val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-    if (resId == 0) {
-        onSuccess()
-        return
+private fun Context.findActivity(): ComponentActivity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is ComponentActivity) return ctx
+        ctx = ctx.baseContext
     }
-    val clientId = context.getString(resId)
-
-    val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
-    val request = GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
-
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val result = credentialManager.getCredential(context as ComponentActivity, request)
-            val credential = result.credential
-            if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                val authCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
-                Firebase.auth.signInWithCredential(authCredential).await()
-                withContext(Dispatchers.Main) {
-                    onSuccess()
-                }
-            } else {
-                withContext(Dispatchers.Main) {
-                    onSuccess()
-                }
-            }
-        } catch (e: GetCredentialCancellationException) {
-            Log.w("Auth", "Sign-in cancelled", e)
-            withContext(Dispatchers.Main) {
-                onCancelled()
-            }
-        } catch (e: Exception) {
-            Log.e("Auth", "Google sign-in failed", e)
-            withContext(Dispatchers.Main) {
-                onSuccess()
-            }
-        }
-    }
+    return null
 }
+
+@Composable
+private fun setupTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Color(0xFF4DE8E0),
+    unfocusedBorderColor = Color(0xFF334155),
+    focusedLabelColor = Color(0xFF4DE8E0),
+    unfocusedLabelColor = Color(0xFF94A3B8),
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White
+)
