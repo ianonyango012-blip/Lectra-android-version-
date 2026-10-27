@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.LectraUiState
 import com.example.ui.LectraViewModel
+import androidx.compose.foundation.layout.Column
 import com.example.ui.components.AddCourseDialog
 import com.example.ui.components.AddFlashcardDialog
 import com.example.ui.components.AddQuizDialog
@@ -32,6 +33,7 @@ import com.example.ui.components.AddStudySessionDialog
 import com.example.ui.components.AddStudyTaskDialog
 import com.example.ui.components.LectraBottomBar
 import com.example.ui.components.LectraTopBar
+import com.example.ui.components.MiniTimerPill
 import com.example.ui.navigation.LectraDestination
 import com.example.ui.navigation.SubScreen
 import com.example.ui.screens.CourseDetailScreen
@@ -40,11 +42,19 @@ import com.example.ui.screens.CoursesScreen
 import com.example.ui.screens.FlashcardStudyScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.PlannerScreen
+import com.example.ui.screens.PomodoroTimerScreen
 import com.example.ui.screens.QuizStudyScreen
 import com.example.ui.screens.RevisionScreen
 import com.example.ui.screens.SettingsScreen
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.splash.SplashScreen
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import com.example.ui.theme.LectraTheme
 import com.example.ui.welcome.WelcomeScreen
 
@@ -119,6 +129,7 @@ fun LectraApp(
     viewModel: LectraViewModel = viewModel(),
     onReconfigureSemester: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -168,7 +179,9 @@ fun LectraApp(
         viewModel.closeSubScreen()
     }
 
-    val isFullStudyScreen = uiState.currentSubScreen == SubScreen.FLASHCARD_STUDY || uiState.currentSubScreen == SubScreen.QUIZ_STUDY
+    val isFullStudyScreen = uiState.currentSubScreen == SubScreen.FLASHCARD_STUDY || 
+            uiState.currentSubScreen == SubScreen.QUIZ_STUDY ||
+            uiState.currentSubScreen == SubScreen.POMODORO_TIMER
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -182,16 +195,42 @@ fun LectraApp(
                         LectraDestination.PLANNER -> "Study Timetable & Deadlines"
                         LectraDestination.REVISION -> "Active Recall & Quizzes"
                         LectraDestination.SETTINGS -> "Profile & Preferences"
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { viewModel.openGlobalSearch() },
+                            modifier = Modifier.testTag("top_bar_search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 )
             }
         },
         bottomBar = {
             if (!isFullStudyScreen && uiState.currentSubScreen != SubScreen.COURSE_DETAIL) {
-                LectraBottomBar(
-                    currentDestination = uiState.currentDestination,
-                    onNavigate = { viewModel.navigateTo(it) }
-                )
+                Column {
+                    MiniTimerPill(
+                        visible = uiState.isTimerRunning || (uiState.timerRemainingSeconds < uiState.timerTotalSeconds),
+                        courses = uiState.courses,
+                        selectedCourseId = uiState.selectedTimerCourseId,
+                        timerMode = uiState.timerMode,
+                        remainingSeconds = uiState.timerRemainingSeconds,
+                        isRunning = uiState.isTimerRunning,
+                        onExpand = { viewModel.openPomodoroTimer() },
+                        onTogglePlayPause = {
+                            if (uiState.isTimerRunning) viewModel.pausePomodoroTimer() else viewModel.startPomodoroTimer()
+                        }
+                    )
+                    LectraBottomBar(
+                        currentDestination = uiState.currentDestination,
+                        onNavigate = { viewModel.navigateTo(it) }
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -218,7 +257,9 @@ fun LectraApp(
                             onPdfSelected = { uri, cId, uId, tId -> viewModel.handlePdfImport(uri, cId, uId, tId) },
                             onDeleteMaterial = { viewModel.deleteMaterial(it) },
                             onStartFlashcards = { viewModel.startFlashcardStudy(it) },
-                            onStartQuiz = { viewModel.startQuizStudy(it) }
+                            onStartQuiz = { viewModel.startQuizStudy(it) },
+                            onStartPomodoro = { viewModel.openPomodoroTimer(it) },
+                            onOpenMaterial = { viewModel.openPdfMaterial(it, context) }
                         )
                     } else {
                         viewModel.closeSubScreen()
@@ -252,6 +293,33 @@ fun LectraApp(
                     )
                 }
 
+                SubScreen.POMODORO_TIMER -> {
+                    PomodoroTimerScreen(
+                        uiState = uiState,
+                        onBackClick = { viewModel.closeSubScreen() },
+                        onSelectCourse = { viewModel.selectTimerCourse(it) },
+                        onSetGoal = { viewModel.setTimerSessionGoal(it) },
+                        onSetMode = { mode, duration -> viewModel.setTimerMode(mode, duration) },
+                        onStartTimer = { viewModel.startPomodoroTimer() },
+                        onPauseTimer = { viewModel.pausePomodoroTimer() },
+                        onStopAndLog = { viewModel.stopAndLogPomodoroSession() },
+                        onResetTimer = { viewModel.resetPomodoroTimer() },
+                        onSkipMode = { viewModel.skipToNextPomodoroMode() }
+                    )
+                }
+
+                SubScreen.GLOBAL_SEARCH -> {
+                    com.example.ui.screens.GlobalSearchScreen(
+                        uiState = uiState,
+                        onBackClick = { viewModel.closeSubScreen() },
+                        onQueryChanged = { viewModel.setSearchQuery(it) },
+                        onOpenCourse = { courseId ->
+                            viewModel.closeSubScreen()
+                            viewModel.openCourseDetail(courseId)
+                        }
+                    )
+                }
+
                 SubScreen.NONE -> {
                     when (uiState.currentDestination) {
                         LectraDestination.HOME -> {
@@ -268,7 +336,8 @@ fun LectraApp(
                                 onQuickAddTask = { showAddTaskDialog = true },
                                 onRequestPdfPicker = {
                                     generalPdfPickerLauncher.launch(arrayOf("application/pdf"))
-                                }
+                                },
+                                onOpenPomodoro = { viewModel.openPomodoroTimer(it) }
                             )
                         }
 

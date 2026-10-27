@@ -29,5 +29,7 @@ enum class SubScreen {
     NONE,
     COURSE_DETAIL,
     FLASHCARD_STUDY,
-    QUIZ_STUDY
+    QUIZ_STUDY,
+    POMODORO_TIMER,
+    GLOBAL_SEARCH
 }

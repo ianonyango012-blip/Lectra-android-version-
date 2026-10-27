@@ -90,7 +90,9 @@ fun CourseDetailScreen(
     onPdfSelected: (Uri, courseId: Long, unitId: Long?, topicId: Long?) -> Unit,
     onDeleteMaterial: (LectureMaterialEntity) -> Unit,
     onStartFlashcards: (Long) -> Unit,
-    onStartQuiz: (Long) -> Unit
+    onStartQuiz: (Long) -> Unit,
+    onStartPomodoro: (Long) -> Unit = {},
+    onOpenMaterial: (LectureMaterialEntity) -> Unit = {}
 ) {
     BackHandler { onBackClick() }
 
@@ -190,6 +192,15 @@ fun CourseDetailScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Practice Quiz", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Button(
+                        onClick = { onStartPomodoro(course.id) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("course_start_pomodoro_button")
+                    ) {
+                        Text("Focus Timer", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -362,7 +373,8 @@ fun CourseDetailScreen(
                     items(materials, key = { "detail_material_${it.id}" }) { material ->
                         LectureMaterialCard(
                             material = material,
-                            onDelete = { onDeleteMaterial(material) }
+                            onDelete = { onDeleteMaterial(material) },
+                            onClick = { onOpenMaterial(material) }
                         )
                     }
                 }
@@ -494,10 +506,13 @@ fun UnitAccordionCard(
 @Composable
 fun LectureMaterialCard(
     material: LectureMaterialEntity,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)

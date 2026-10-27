@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material3.ButtonDefaults
@@ -104,7 +106,8 @@ fun HomeScreen(
     onQuickAddCourse: () -> Unit,
     onQuickAddSession: () -> Unit,
     onQuickAddTask: () -> Unit,
-    onRequestPdfPicker: () -> Unit
+    onRequestPdfPicker: () -> Unit,
+    onOpenPomodoro: (Long?) -> Unit = {}
 ) {
     val currentTimeInMinutes = uiState.currentHour * 60 + uiState.currentMinute
     val todayDayOfWeek = uiState.currentDayOfWeek
@@ -176,6 +179,17 @@ fun HomeScreen(
                 currentMinute = uiState.currentMinute,
                 totalCourses = uiState.courses.size,
                 activeClassCount = upcomingTodayClasses.size
+            )
+        }
+
+        // 1.5 Pomodoro Focus Session Quick Card
+        item(key = "home_pomodoro_quick_card") {
+            PomodoroQuickCard(
+                isRunning = uiState.isTimerRunning,
+                remainingSeconds = uiState.timerRemainingSeconds,
+                completedCount = uiState.completedPomodoroCount,
+                selectedCourse = uiState.courses.find { it.id == uiState.selectedTimerCourseId } ?: uiState.courses.firstOrNull(),
+                onOpenPomodoro = { onOpenPomodoro(null) }
             )
         }
 
@@ -1355,5 +1369,94 @@ fun getDayName(dayNum: Int): String {
         5 -> "Friday"
         6 -> "Saturday"
         else -> "Sunday"
+    }
+}
+
+@Composable
+fun PomodoroQuickCard(
+    isRunning: Boolean,
+    remainingSeconds: Int,
+    completedCount: Int,
+    selectedCourse: CourseEntity?,
+    onOpenPomodoro: () -> Unit
+) {
+    val minutes = remainingSeconds / 60
+    val seconds = remainingSeconds % 60
+    val timeFormatted = String.format("%02d:%02d", minutes, seconds)
+
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable { onOpenPomodoro() }
+            .testTag("home_pomodoro_card"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isRunning) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isRunning) Icons.Default.HourglassTop else Icons.Default.SelfImprovement,
+                        contentDescription = "Pomodoro",
+                        tint = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = if (isRunning) "Active Focus Session" else "Pomodoro Focus Timer",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isRunning) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isRunning) {
+                            "${selectedCourse?.code ?: "Course"} • $timeFormatted remaining"
+                        } else {
+                            if (selectedCourse != null) "Ready for ${selectedCourse.code} • 25m Focus Block" else "Timed focus blocks for your courses"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isRunning) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            FilledTonalButton(
+                onClick = onOpenPomodoro,
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                ),
+                modifier = Modifier.testTag("home_start_pomodoro_button")
+            ) {
+                Text(
+                    text = if (isRunning) "View" else "Focus",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
