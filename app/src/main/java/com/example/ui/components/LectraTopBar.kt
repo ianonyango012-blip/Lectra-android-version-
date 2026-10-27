@@ -65,13 +65,13 @@ fun LectraTopBar(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(DeepIndigo),
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_lectra_symbol),
                                     contentDescription = "Lectra Emblem",
-                                    tint = Color.Unspecified,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -85,7 +85,7 @@ fun LectraTopBar(
                                         fontFamily = MichromaFontFamily,
                                         fontWeight = FontWeight.Normal,
                                         letterSpacing = 2.sp,
-                                        color = PureWhite
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 } else {
                                     MaterialTheme.typography.titleLarge.copy(

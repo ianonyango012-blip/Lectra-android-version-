@@ -1,131 +1,91 @@
-# LECTRA — Smart University Study Companion
+# CourseListScreen (Warm Amber & Deep Espresso)
 
-A native Android application built with Kotlin and Jetpack Compose to help university students organize lecture materials, track course units and topics, schedule study sessions, and master exam material with active-recall flashcards and practice quizzes.
+A dedicated Material 3 Composable screen that observes courses directly from the local Room database, styled with an academic Warm Amber and Deep Espresso palette.
 
----
-
-### User Review & Critical Decisions
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following architectural and design choices have been confirmed and incorporated into the blueprint:
-
-- **Confirmed Aesthetic**: **Warm Amber and Deep Espresso Campus Style** — rich warm leather/amber accents (`#D97706`, `#B45309`), deep espresso & cocoa slate surfaces (`#1C1410`, `#2B1D16` in dark mode; `#FFFDF9`, `#FAF5EE` in light mode), parchment card tones, and high-contrast editorial typography.
-- **Confirmed Data Seeding**: First-launch auto-seeding with realistic university courses (e.g. *CS 301: Distributed Systems & Cloud Architecture*, *BIO 210: Molecular Genetics & Cellular Biology*), complete with units, topics, scheduled study sessions, and flashcard/quiz decks so the app feels immediately alive and actionable.
-- **Confirmed Revision Focus**: Comprehensive Revision Hub supporting **both** spaced-repetition flashcard drills (with Again, Hard, Good, Easy recall scoring) and interactive multiple-choice practice quizzes with instant feedback, explanations, and score tracking.
-- **Local Persistence Strategy**: Local-first Room database storing structured relational data (Courses, Units, Topics, Document References via Android Storage Access Framework URI permissions, Study Sessions, Flashcards, and Quiz Results). No large binary PDFs stored directly in SQLite.
-- **AI Integration Architecture**: Clean abstraction layer (`SummarizationService`, `FlashcardGeneratorService`) with Gemini API ready interfaces that function gracefully in offline/unauthenticated mode without crashing or blocking core study capabilities.
-- **CI/CD & GitHub Readiness**: Standard Android Gradle structure, complete wrapper files, `.gitignore`, and a verified GitHub Actions workflow (`.github/workflows/build.yml`) to compile and artifact the debug APK.
+> The following choices were confirmed during Phase 1:
+> - **Navigation Integration**: Replace the existing Courses screen destination with `CourseListScreen`.
+> - **Card Elements**: Display course code badge, course title, lecturer name, weekly study hours target, and quick actions (delete with confirmation, tap to open details).
+> - **Palette Scope**: Apply the Warm Amber (`#F59E0B` / `#D97706`) and Deep Espresso (`#1A120B` / `#281B12`) palette specifically to the `CourseListScreen` container, cards, chips, and Floating Action Button.
 
 ---
 
 ### 1. Overview & Core Concept
-
-**LECTRA** addresses the chronic cognitive overload experienced by university students who juggle dense lecture slide decks, syllabus timelines, and fragmented study notes.
-
-- **Primary Persona**: College and graduate students managing 4–6 rigorous academic courses per term who struggle with unstructured PDF slides, last-minute cramming, and missed assignment deadlines.
-- **Core Value Proposition**:
-  1. **Course & Lecture Matrix**: Turn chaotic PDF slide drops into structured Units and Topics with permanent document SAF bookmarks and reading statuses.
-  2. **Smart Timetable & Planner**: Prevent overlapping study sessions, track upcoming assignment deadlines, and log completed revision time.
-  3. **Active Recall Hub**: Transition passive slide reading into active recall through self-scored flashcards and topical practice quizzes.
-  4. **AI-Ready Foundation**: Modular service contract to plug in Gemini-powered slide summarization and auto-flashcard generation upon user secret activation.
+- **What It Does**: Renders a reactive, clean list of enrolled academic courses queried from Room (`CourseDao`). Provides a Floating Action Button to add a new course and an interactive card layout with delete confirmation dialogs and navigation to course details.
+- **Target Audience**: University students managing course syllabi, lecture materials, and weekly credit hours.
+- **Key Value**: Delivers a rich, focused course management interface with high contrast, tactile feedback, and accessibility-compliant touch targets (min 48dp).
 
 ---
 
 ### 2. User Experience & Visual Design
 
-#### Aesthetic Direction: Warm Amber & Deep Espresso Campus Style
-The visual identity evokes a modern university library study lounge—warm parchment, brass and amber accents, espresso card borders, and crisp, focused typography.
+#### Color System: Warm Amber & Deep Espresso
+- **Background / Container**: Deep Espresso (`#1A120B` to `#23170F`) with subtle vertical gradient.
+- **Card Surface**: Rich Roasted Espresso (`#2C1E14`) with a warm border stroke (`#4A3525`).
+- **Primary Accent**: Warm Amber (`#F59E0B` / `#D97706`) for badges, FAB, and progress highlights.
+- **Secondary Accent**: Golden Honey (`#FBBF24`) for icons and stat chips.
+- **Typography**:
+  - Primary text: Cream / Warm White (`#FDFBF7`)
+  - Secondary text: Latte / Muted Tan (`#C4B5A5`)
+- **Action State**: Crimson Rust (`#EF4444`) for destructive delete confirmation.
 
-- **Primary Accent**: Warm Amber (`#D97706`), Warm Honey (`#F59E0B`), Terracotta Gold (`#C2410C`)
-- **Background & Canvas**:
-  - Dark Mode: Deep Espresso Slate (`#18120F`), Roasted Cocoa Surface (`#241A14`), Warm Muted Charcoal (`#2F241E`)
-  - Light Mode: Warm Ivory/Parchment (`#FDFBF7`), Pale Oatmeal (`#F5EFE6`), Warm Timber Border (`#E6DACB`)
-- **Text & Hierarchy**:
-  - Display & Headlines: Bold, collegiate serif-weighted feeling with crisp tracking.
-  - Body & Metadata: Highly legible geometric sans with generous line-height for dense academic reading.
-
-#### Key Navigation Destinations (M3 Bottom Navigation Bar with Safe Insets)
-1. **Home (Dashboard)**:
-   - Quick greeting with campus term progress & weekly study streak badge.
-   - "Today's Agenda" study session cards with one-tap "Mark Complete" / "Start Session".
-   - "Recent Lecture Materials" carousel with document tags and topic links.
-   - Quick action bar: "Import PDF", "Add Course", "New Study Session", "Quick Quiz".
-   - Study time analytics (Hours studied this week, flashcards reviewed).
-2. **My Courses**:
-   - Course cards showing course code, title, color tag, lecturer, and total units/materials.
-   - Hierarchical Course Detail: Units -> Topics -> Lecture PDFs & Notes.
-   - Document SAF import: Pick PDF via system file picker, persist URI permissions, track import date, file size, and reading progress.
-   - Add/Edit/Delete Course and Topic dialogs.
-3. **Study Planner**:
-   - Day & week timeline view with non-overlapping visual session blocks.
-   - Upcoming assignment/exam deadline countdown tags.
-   - Floating Action Button to schedule sessions with course picker, topic selection, start/end time validation, and reminder settings.
-4. **Revision Hub**:
-   - Dual-tab interface: **Flashcards** & **Practice Quizzes**.
-   - Interactive Flashcard Study Deck: Smooth flip animation, 4-tier recall grading (*Again*, *Hard*, *Good*, *Easy*), session completion summary.
-   - Interactive Practice Quiz: Multiple choice questions with instant answer reveal, explanation cards, and final score summary.
-   - Manual deck/card creation and AI-Ready "Generate from Lecture" preview card.
-5. **Profile & Settings**:
-   - Academic semester configuration (Term dates, target study hours).
-   - Storage stats (Total courses, imported PDFs, total flashcards).
-   - AI Engine Status indicator (Gemini configuration status, privacy explanation disclosure).
-   - Sample data reset & export options.
+#### Layout & Interaction Flow
+1. **Empty State**: When no courses are enrolled, displays a cozy warm espresso card with a book icon, encouraging students to tap the Amber FAB.
+2. **Populated List**: A staggered `LazyColumn` of `CourseCard` items featuring:
+   - Top accent stripe colored by course's chosen color or warm amber.
+   - Course code badge with rounded pill shape.
+   - Course title in bold typography.
+   - Lecturer row with person icon.
+   - Study time target chip and PDF materials counter.
+   - Direct tap navigates to `CourseDetailScreen`.
+   - Delete icon triggers an accessible Material 3 `AlertDialog`.
+3. **Floating Action Button**: Positioned at bottom-end with Warm Amber container, Deep Espresso icon, and ripple feedback, triggering the course creation dialog.
 
 ---
 
 ### 3. Key Product Decisions & Trade-Offs
 
-- **Room Relational Database with Foreign Keys**:
-  - *Chosen Approach*: Clean Room database (`LectraDatabase`) containing entities for `CourseEntity`, `UnitEntity`, `TopicEntity`, `LectureMaterialEntity`, `StudySessionEntity`, `FlashcardEntity`, and `QuizQuestionEntity`.
-  - *Why*: Instant offline access, zero network delay, strong relational integrity (cascading deletes when a course or unit is removed), and fully compliant with Android best practices.
-- **Android Storage Access Framework (SAF) URI Persistence**:
-  - *Chosen Approach*: Store Android content URIs (`takePersistableUriPermission`) and file metadata in SQLite rather than copying gigabytes of raw PDF byte arrays into the database.
-  - *Why*: Avoids database size bloat, prevents out-of-memory errors on large slide decks, and respects user device storage.
-- **Offline-First AI Bridge**:
-  - *Chosen Approach*: `AiService` interface with a `LocalFallbackAiService` and `GeminiAiService` implementation. If no API key is configured in AI Studio secrets, the app gracefully highlights manual creation while showing transparent AI preparation cards without crashes.
-- **Pre-loaded Academic Demo Dataset**:
-  - *Chosen Approach*: Seamless database pre-population during first launch so the user explores a fully populated study ecosystem immediately.
+- **Decision 1: Direct Integration into Existing ViewModel State vs Standalone Flow**
+  - *Chosen Approach*: `CourseListScreen` accepts reactive `List<CourseEntity>` and `List<LectureMaterialEntity>` from `LectraViewModel.uiState` (which already observes Room DAO `Flow`).
+  - *Why*: Eliminates redundant DAO query dispatchers and ensures instant UI synchronization when courses are added or removed across dashboard, planner, and course detail screens.
+- **Decision 2: Localized Warm Amber Palette vs Global Theme Overwrite**
+  - *Chosen Approach*: Scope the Warm Amber & Deep Espresso color tokens to `CourseListScreen` components and card containers, while keeping existing app navigation (`LectraTheme`) consistent.
+  - *Why*: Prevents breaking visual consistency on Home, Planner, and Revision screens while fulfilling the exact design mandate for the course screen.
 
 ---
 
 ### 4. Technical Architecture & Data Strategy
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LECTRA PRESENTATION LAYER                  │
-│                                                                 │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐  │
-│  │  HomeScreen  │ │CourseScreens │ │PlannerScreen │ │Revision│  │
-│  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └───┬────┘  │
-│         │                │                │             │       │
-│  ┌──────▼────────────────▼────────────────▼─────────────▼────┐  │
-│  │                    LectraViewModel                        │  │
-│  │   (StateFlow<LectraUiState>, CoroutineScope, SAF Handler) │  │
-│  └──────────────────────────────┬────────────────────────────┘  │
-└─────────────────────────────────┼───────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼───────────────────────────────┐
-│                     LECTRA REPOSITORY LAYER                     │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    LectraRepository                        │ │
-│  │   (Flow-based queries, CRUD operations, SAF resolver)      │ │
-│  └──────────────┬───────────────────────────────┬─────────────┘ │
-└─────────────────┼───────────────────────────────┼───────────────┘
-                  │                               │
-┌─────────────────▼──────────────┐ ┌──────────────▼───────────────┐
-│         LOCAL PERSISTENCE      │ │          AI SERVICES         │
-│  ┌───────────────────────────┐ │ │  ┌─────────────────────────┐ │
-│  │      LectraDatabase       │ │ │  │  AiSummarizerService    │ │
-│  │ (Room 2.6.1 + KSP Engine) │ │ │  │  - Gemini REST / Logic   │ │
-│  │  - CourseDao              │ │ │  │  - Fallback / Mock-free │ │
-│  │  - LectureMaterialDao     │ │ │  │  - Explicit consent     │ │
-│  │  - StudySessionDao        │ │ │  └─────────────────────────┘ │
-│  │  - RevisionDao            │ │                                │
-│  └───────────────────────────┘ │                                │
-└────────────────────────────────┘ └──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      Room Database                          │
+│                   (CourseDao / Entity)                      │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ Flow<List<CourseEntity>>
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      LectraViewModel                        │
+│                 (MutableStateFlow<UiState>)                 │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ collectAsStateWithLifecycle()
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     CourseListScreen                        │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ TopBar / Screen Header (Warm Amber & Espresso Title)    │ │
+│ ├─────────────────────────────────────────────────────────┤ │
+│ │ LazyColumn: CourseCard items                            │ │
+│ │  - Code pill & Title                                    │ │
+│ │  - Lecturer & Target Hours                              │ │
+│ │  - Delete & Open Actions                                │ │
+│ ├─────────────────────────────────────────────────────────┤ │
+│ │ FloatingActionButton: Add Course Dialog trigger         │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### GitHub Actions Workflow (`.github/workflows/build.yml`)
-- Automates checkout, JDK 17 setup, Android SDK caching, and executing `gradle assembleDebug`.
-- Uploads `app/build/outputs/apk/debug/app-debug.apk` as a downloadable artifact.
-- Includes step-by-step instructions in the repository `README.md`.
+#### Verification Plan
+- Build execution using `compile_applet`.
+- Unit tests via `gradle :app:testDebugUnitTest` verifying `CourseEntity` rendering, empty state handling, and course list state emission.

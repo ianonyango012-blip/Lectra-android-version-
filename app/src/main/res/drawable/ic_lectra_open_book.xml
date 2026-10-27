@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="112dp"
+    android:height="84dp"
+    android:viewportWidth="112"
+    android:viewportHeight="84">
+
+    <!-- Bottom Page Thickness (Depth layer underneath pages) -->
+    <!-- Left base shadow/thickness -->
+    <path
+        android:fillColor="#4D3FAF"
+        android:pathData="M56,72 C42,75 26,71 16,66 L16,68 C26,73 42,77 56,74 Z" />
+    <!-- Right base shadow/thickness -->
+    <path
+        android:fillColor="#4D3FAF"
+        android:pathData="M56,74 C70,77 86,73 96,68 L96,66 C86,71 70,75 56,72 Z" />
+
+    <!-- Left Page (Crisp White with soft violet outline) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#7565F6"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M56,71 C44,71 28,66 16,60 C16,42 22,26 36,25 C44,24 51,28 56,33 Z" />
+
+    <!-- Left Page Inner Subtle Text/Line Accents -->
+    <path
+        android:strokeColor="#E0E2FF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M28,40 C35,39 44,41 48,43 M26,49 C34,48 44,50 48,52 M30,58 C37,57 44,59 48,61" />
+
+    <!-- Right Page (Vibrant Brand Violet) -->
+    <path
+        android:fillColor="#7565F6"
+        android:strokeColor="#8273FF"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M56,71 C68,71 84,66 96,60 C96,42 90,26 76,25 C68,24 61,28 56,33 Z" />
+
+    <!-- Right Page Inner Lighter Violet Detail Highlight -->
+    <path
+        android:fillColor="#8C7EFF"
+        android:pathData="M56,66 C66,66 80,62 90,56 C90,44 85,32 75,31 C68,30 62,33 56,37 Z" />
+
+    <!-- Right Page Subtle Contrast Lines -->
+    <path
+        android:strokeColor="#C5BEFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M64,43 C68,41 77,39 84,40 M64,52 C70,50 78,48 86,49 M64,61 C69,59 76,57 82,58" />
+
+    <!-- Central Spine Binding Accent -->
+    <path
+        android:fillColor="#342B8C"
+        android:pathData="M55,32 L57,32 L57,73 L55,73 Z" />
+    <path
+        android:strokeColor="#8273FF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M56,32 L56,73" />
+</vector>

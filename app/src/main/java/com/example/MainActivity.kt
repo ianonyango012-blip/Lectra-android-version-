@@ -35,6 +35,7 @@ import com.example.ui.components.LectraTopBar
 import com.example.ui.navigation.LectraDestination
 import com.example.ui.navigation.SubScreen
 import com.example.ui.screens.CourseDetailScreen
+import com.example.ui.screens.CourseListScreen
 import com.example.ui.screens.CoursesScreen
 import com.example.ui.screens.FlashcardStudyScreen
 import com.example.ui.screens.HomeScreen
@@ -45,6 +46,7 @@ import com.example.ui.screens.SettingsScreen
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.splash.SplashScreen
 import com.example.ui.theme.LectraTheme
+import com.example.ui.welcome.WelcomeScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,32 +68,46 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            LectraTheme {
+            val mainViewModel: LectraViewModel = viewModel()
+            val mainUiState by mainViewModel.uiState.collectAsStateWithLifecycle()
+
+            LectraTheme(themeMode = mainUiState.themeMode) {
                 var showSplash by rememberSaveable { mutableStateOf(true) }
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val prefs = remember { context.getSharedPreferences("lectra_prefs", android.content.Context.MODE_PRIVATE) }
-                var isOnboardingComplete by remember {
-                    mutableStateOf(prefs.getBoolean("onboarding_complete", false))
+                var isOnboardingCompleted by remember {
+                    mutableStateOf(prefs.getBoolean("onboarding_completed", false))
                 }
-                var isSemesterSetupComplete by remember {
-                    mutableStateOf(prefs.getBoolean("semester_setup_complete", false))
-                }
+                var isSemesterReconfiguring by remember { mutableStateOf(false) }
 
                 if (showSplash) {
                     SplashScreen(
                         onSplashFinished = { showSplash = false }
                     )
-                } else if (!isOnboardingComplete) {
-                    com.example.ui.screens.OnboardingScreen(
-                        onOnboardingComplete = { isOnboardingComplete = true }
+                } else if (!isOnboardingCompleted) {
+                    WelcomeScreen(
+                        onGetStarted = {
+                            prefs.edit()
+                                .putBoolean("onboarding_completed", true)
+                                .putBoolean("semester_setup_complete", true)
+                                .apply()
+                            isOnboardingCompleted = true
+                        }
                     )
-                } else if (!isSemesterSetupComplete) {
+                } else if (isSemesterReconfiguring) {
                     com.example.ui.screens.SemesterSetupScreen(
-                        viewModel = viewModel(),
-                        onSetupComplete = { isSemesterSetupComplete = true }
+                        viewModel = mainViewModel,
+                        onSetupComplete = {
+                            isSemesterReconfiguring = false
+                        }
                     )
                 } else {
-                    LectraApp()
+                    LectraApp(
+                        viewModel = mainViewModel,
+                        onReconfigureSemester = {
+                            isSemesterReconfiguring = true
+                        }
+                    )
                 }
             }
         }
@@ -100,7 +116,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LectraApp(
-    viewModel: LectraViewModel = viewModel()
+    viewModel: LectraViewModel = viewModel(),
+    onReconfigureSemester: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -256,7 +273,7 @@ fun LectraApp(
                         }
 
                         LectraDestination.COURSES -> {
-                            CoursesScreen(
+                            CourseListScreen(
                                 courses = uiState.courses,
                                 materials = uiState.materials,
                                 onCourseClick = { viewModel.openCourseDetail(it) },
@@ -295,7 +312,10 @@ fun LectraApp(
                         LectraDestination.SETTINGS -> {
                             SettingsScreen(
                                 uiState = uiState,
-                                onResetDemoData = { viewModel.resetToDemoData() }
+                                backupManager = viewModel.backupManager,
+                                onThemeModeChanged = { viewModel.setThemeMode(it) },
+                                onResetDemoData = { viewModel.resetToDemoData() },
+                                onReconfigureSemester = onReconfigureSemester
                             )
                         }
                     }

@@ -1,24 +1,20 @@
 package com.example.ui.splash
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,325 +25,221 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.DeepIndigo
-import com.example.ui.theme.ElectricLime
-import com.example.ui.theme.ElectricViolet
-import com.example.ui.theme.LuminousCyan
-import com.example.ui.theme.MichromaFontFamily
-import com.example.ui.theme.MidnightNavy
-import com.example.ui.theme.MutedBlueGrey
-import com.example.ui.theme.PureWhite
-import com.example.ui.theme.SoraFontFamily
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
+/**
+ * SCREEN A — MINIMALIST BRANDED SPLASH SCREEN
+ *
+ * Displays:
+ * 1. The word "Lectra" (white bold sans-serif ~66sp at ~42-45% height).
+ * 2. The exact two-line tagline "Your notes. Your structure.\nYour success." (#C7C9FF ~22sp).
+ * 3. Deep navy background with overlapping curved violet waves along bottom.
+ *
+ * Strictly NO book logo, NO buttons, NO extra text.
+ */
 @Composable
 fun SplashScreen(
+    autoDismiss: Boolean = true,
+    splashDurationMillis: Long = 1000L,
     onSplashFinished: () -> Unit
 ) {
-    // Animatable states
-    val logoAlpha = remember { Animatable(0f) }
-    val logoProgress = remember { Animatable(0f) }
-    val particleAlpha = remember { Animatable(0f) }
-    val wordmarkAlpha = remember { Animatable(0f) }
-    val taglineAlpha = remember { Animatable(0f) }
-
-    LaunchedEffect(Unit) {
-        // Step 1: 0 - 500ms: Logo fades in and book geometry opens outward
-        launch {
-            logoAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 500, easing = LinearEasing)
-            )
+    LaunchedEffect(autoDismiss) {
+        if (autoDismiss) {
+            delay(splashDurationMillis)
+            onSplashFinished()
         }
-        launch {
-            logoProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 650,
-                    easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-                )
-            )
-        }
-
-        // Step 2: 300 - 850ms: Luminous particles and connection lines emerge
-        delay(300)
-        launch {
-            particleAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing)
-            )
-        }
-
-        // Step 3: 600 - 1100ms: LECTRA wordmark in Michroma fades in
-        delay(300)
-        launch {
-            wordmarkAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
-            )
-        }
-
-        // Step 4: 800 - 1300ms: Tagline in Sora fades in
-        delay(200)
-        launch {
-            taglineAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
-            )
-        }
-
-        // Hold composition static and polished, then complete launch
-        delay(600)
-        onSplashFinished()
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        DeepIndigo.copy(alpha = 0.85f),
-                        MidnightNavy
-                    ),
-                    radius = 1200f
-                )
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                // Allow tapping to proceed immediately without delay
-                onSplashFinished()
-            }
-            .systemBarsPadding()
-            .testTag("splash_screen_container"),
-        contentAlignment = Alignment.Center
+        modifier = Modifier.fillMaxSize()
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // 1. Background: Deep navy with subtle gradients and overlapping curved waves
+        SplashBackground(modifier = Modifier.fillMaxSize())
+
+        // 2. Full-screen tap surface to allow tapping to proceed immediately
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("splash_screen_container")
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onSplashFinished()
+                }
+        )
+
+        // 3. Foreground: Wordmark + Tagline positioned responsively at ~42-45% height
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
         ) {
-            // Central Abstract "Knowledge in Motion" Logo
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .graphicsLayer {
-                        alpha = logoAlpha.value
-                        scaleX = 0.9f + (logoProgress.value * 0.1f)
-                        scaleY = 0.9f + (logoProgress.value * 0.1f)
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                KnowledgeInMotionSymbol(
-                    drawProgress = logoProgress.value,
-                    particleProgress = particleAlpha.value
-                )
+            val totalHeight = maxHeight
+            val totalWidth = maxWidth
+            val topWordmarkPadding = totalHeight * 0.40f
+
+            // Responsively adjust wordmark font size (64-70sp on typical phone, scaled for compact screens)
+            val wordmarkFontSize = when {
+                totalWidth < 340.dp -> 44.sp
+                totalWidth < 380.dp -> 54.sp
+                else -> 66.sp
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            val taglineFontSize = when {
+                totalWidth < 340.dp -> 16.sp
+                totalWidth < 380.dp -> 19.sp
+                else -> 22.sp
+            }
 
-            // Brand Wordmark: Michroma uppercase with controlled letter spacing
-            Text(
-                text = "LECTRA",
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontFamily = MichromaFontFamily,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 6.sp,
-                    color = PureWhite
-                ),
+            val taglineLineHeight = when {
+                totalWidth < 340.dp -> 24.sp
+                totalWidth < 380.dp -> 28.sp
+                else -> 32.sp
+            }
+
+            Column(
                 modifier = Modifier
-                    .graphicsLayer { alpha = wordmarkAlpha.value }
-                    .testTag("splash_wordmark")
-            )
+                    .fillMaxSize()
+                    .padding(horizontal = if (totalWidth < 360.dp) 12.dp else 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(topWordmarkPadding))
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Lectra",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = wordmarkFontSize,
+                        letterSpacing = 1.sp,
+                        color = Color.White
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("splash_wordmark")
+                )
 
-            // Tagline: "Learn it. Link it. Remember it." in Sora
-            Text(
-                text = "Learn it. Link it. Remember it.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = SoraFontFamily,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.6.sp,
-                    color = MutedBlueGrey
-                ),
-                modifier = Modifier
-                    .graphicsLayer { alpha = taglineAlpha.value }
-                    .testTag("splash_tagline")
-            )
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "Your notes. Your structure.\nYour success.",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = taglineFontSize,
+                        lineHeight = taglineLineHeight,
+                        color = Color(0xFFC7C9FF)
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("splash_tagline")
+                )
+            }
         }
     }
 }
 
+/**
+ * Background decoration for Screen A:
+ * Main navy #050B25, secondary navy #080D2C, deep indigo #17165A, violet wave highlight #29247D.
+ * Overlapping curved waves along the bottom 65-70% height with no outlines.
+ */
 @Composable
-fun KnowledgeInMotionSymbol(
-    drawProgress: Float,
-    particleProgress: Float,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier.fillMaxSize()) {
+private fun SplashBackground(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val centerX = w / 2f
-        val centerY = h / 2f + 8f
 
-        // 1. Spine / Central Axis
-        val spineTop = centerY - 14f * drawProgress
-        val spineBottom = centerY + 30f * drawProgress
-        drawLine(
-            color = LuminousCyan,
-            start = Offset(centerX, spineTop),
-            end = Offset(centerX, spineBottom),
-            strokeWidth = 3f * drawProgress,
-            cap = StrokeCap.Round
+        // 1. Smooth dark navy base gradient
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF050B25),
+                    Color(0xFF080D2C),
+                    Color(0xFF0A102E)
+                ),
+                startY = 0f,
+                endY = h
+            )
         )
 
-        // 2. Left Page / Knowledge Ribbon
-        val leftPath = Path().apply {
-            moveTo(centerX, spineBottom)
+        // 2. Wave 1 (Upper curve): begins around 66% height forming a broad, shallow U-shaped curve
+        val wave1Path = Path().apply {
+            moveTo(0f, h * 0.67f)
             cubicTo(
-                centerX - (20f * drawProgress), spineBottom,
-                centerX - (46f * drawProgress), centerY + 18f,
-                centerX - (56f * drawProgress), centerY + 8f
+                w * 0.28f, h * 0.72f,
+                w * 0.68f, h * 0.73f,
+                w, h * 0.65f
             )
-            cubicTo(
-                centerX - (56f * drawProgress), centerY - 12f,
-                centerX - (38f * drawProgress), centerY - 20f,
-                centerX - (18f * drawProgress), centerY - 18f
-            )
-            lineTo(centerX, spineTop)
+            lineTo(w, h)
+            lineTo(0f, h)
             close()
         }
-
-        // Fill Left Ribbon with Electric Violet
         drawPath(
-            path = leftPath,
-            brush = Brush.linearGradient(
-                colors = listOf(ElectricViolet, ElectricViolet.copy(alpha = 0.75f)),
-                start = Offset(centerX, centerY),
-                end = Offset(centerX - 56f, centerY)
+            path = wave1Path,
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF29247D).copy(alpha = 0.85f),
+                    Color(0xFF17165A)
+                ),
+                startY = h * 0.65f,
+                endY = h
             )
         )
 
-        // Left Ribbon Outline Highlight
-        drawPath(
-            path = leftPath,
-            color = LuminousCyan.copy(alpha = 0.5f * drawProgress),
-            style = Stroke(width = 1.5f)
-        )
-
-        // 3. Right Page / Knowledge Ribbon (Symmetrical outward flow)
-        val rightPath = Path().apply {
-            moveTo(centerX, spineBottom)
+        // 3. Wave 2 (Middle curve): deep indigo to violet
+        val wave2Path = Path().apply {
+            moveTo(0f, h * 0.75f)
             cubicTo(
-                centerX + (20f * drawProgress), spineBottom,
-                centerX + (46f * drawProgress), centerY + 18f,
-                centerX + (56f * drawProgress), centerY + 8f
+                w * 0.35f, h * 0.71f,
+                w * 0.72f, h * 0.80f,
+                w, h * 0.74f
             )
-            cubicTo(
-                centerX + (56f * drawProgress), centerY - 12f,
-                centerX + (38f * drawProgress), centerY - 20f,
-                centerX + (18f * drawProgress), centerY - 18f
-            )
-            lineTo(centerX, spineTop)
+            lineTo(w, h)
+            lineTo(0f, h)
             close()
         }
-
-        // Fill Right Ribbon with Electric Violet
         drawPath(
-            path = rightPath,
+            path = wave2Path,
             brush = Brush.linearGradient(
-                colors = listOf(ElectricViolet, ElectricViolet.copy(alpha = 0.75f)),
-                start = Offset(centerX, centerY),
-                end = Offset(centerX + 56f, centerY)
+                colors = listOf(
+                    Color(0xFF17165A).copy(alpha = 0.95f),
+                    Color(0xFF29247D).copy(alpha = 0.75f)
+                ),
+                start = Offset(0f, h * 0.72f),
+                end = Offset(w, h)
             )
         )
 
-        // Right Ribbon Outline Highlight
-        drawPath(
-            path = rightPath,
-            color = LuminousCyan.copy(alpha = 0.5f * drawProgress),
-            style = Stroke(width = 1.5f)
-        )
-
-        // 4. Emerging Connected Knowledge Lines & Particles
-        if (particleProgress > 0.05f) {
-            val pAlpha = particleProgress.coerceIn(0f, 1f)
-
-            // Ascending Connection Rays
-            val rayCenterY = centerY - 38f * particleProgress
-            val rayLeftX = centerX - 26f * particleProgress
-            val rayLeftY = centerY - 52f * particleProgress
-            val rayRightX = centerX + 26f * particleProgress
-            val rayRightY = centerY - 52f * particleProgress
-
-            // Fine connection rays
-            drawLine(
-                color = LuminousCyan.copy(alpha = 0.6f * pAlpha),
-                start = Offset(centerX, spineTop),
-                end = Offset(centerX, rayCenterY),
-                strokeWidth = 2f,
-                cap = StrokeCap.Round
+        // 4. Wave 3 (Lowest curve): base wave anchoring the bottom
+        val wave3Path = Path().apply {
+            moveTo(0f, h * 0.84f)
+            cubicTo(
+                w * 0.32f, h * 0.88f,
+                w * 0.68f, h * 0.82f,
+                w, h * 0.86f
             )
-            drawLine(
-                color = ElectricViolet.copy(alpha = 0.5f * pAlpha),
-                start = Offset(centerX, rayCenterY),
-                end = Offset(rayLeftX, rayLeftY),
-                strokeWidth = 1.5f,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = LuminousCyan.copy(alpha = 0.5f * pAlpha),
-                start = Offset(centerX, rayCenterY),
-                end = Offset(rayRightX, rayRightY),
-                strokeWidth = 1.5f,
-                cap = StrokeCap.Round
-            )
-
-            // Central Luminous Nodes
-            // Center Particle (Cyan)
-            drawCircle(
-                color = LuminousCyan.copy(alpha = pAlpha),
-                radius = 5f * particleProgress,
-                center = Offset(centerX, rayCenterY)
-            )
-            drawCircle(
-                color = LuminousCyan.copy(alpha = 0.35f * pAlpha),
-                radius = 10f * particleProgress,
-                center = Offset(centerX, rayCenterY)
-            )
-
-            // Left Particle (Violet)
-            drawCircle(
-                color = ElectricViolet.copy(alpha = pAlpha),
-                radius = 4.5f * particleProgress,
-                center = Offset(rayLeftX, rayLeftY)
-            )
-
-            // Right Particle (Cyan)
-            drawCircle(
-                color = LuminousCyan.copy(alpha = pAlpha),
-                radius = 4.5f * particleProgress,
-                center = Offset(rayRightX, rayRightY)
-            )
-
-            // Top Apex Sparkle (Lime Restrained Accent)
-            val apexSparkleY = centerY - 62f * particleProgress
-            drawCircle(
-                color = ElectricLime.copy(alpha = 0.9f * pAlpha),
-                radius = 2.5f * particleProgress,
-                center = Offset(centerX, apexSparkleY)
-            )
+            lineTo(w, h)
+            lineTo(0f, h)
+            close()
         }
+        drawPath(
+            path = wave3Path,
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF17165A),
+                    Color(0xFF080D2C)
+                ),
+                startY = h * 0.82f,
+                endY = h
+            )
+        )
     }
 }

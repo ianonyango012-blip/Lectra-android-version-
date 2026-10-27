@@ -22,6 +22,15 @@ interface CourseDao {
     @Query("SELECT * FROM courses ORDER BY createdAt DESC")
     fun getAllCourses(): Flow<List<CourseEntity>>
 
+    @Query("SELECT * FROM courses ORDER BY createdAt DESC")
+    suspend fun getAllCoursesList(): List<CourseEntity>
+
+    @Query("SELECT * FROM units ORDER BY unitNumber ASC")
+    suspend fun getAllUnitsList(): List<UnitEntity>
+
+    @Query("SELECT * FROM topics ORDER BY id ASC")
+    suspend fun getAllTopicsList(): List<TopicEntity>
+
     @Query("SELECT COUNT(*) FROM courses")
     suspend fun getCourseCount(): Int
 
@@ -78,6 +87,9 @@ interface LectureClassDao {
     @Query("SELECT * FROM lecture_classes ORDER BY dayOfWeek ASC, startHour ASC, startMinute ASC")
     fun getAllLectureClasses(): Flow<List<LectureClassEntity>>
 
+    @Query("SELECT * FROM lecture_classes ORDER BY dayOfWeek ASC, startHour ASC, startMinute ASC")
+    suspend fun getAllLectureClassesList(): List<LectureClassEntity>
+
     @Query("SELECT * FROM lecture_classes WHERE dayOfWeek = :dayOfWeek ORDER BY startHour ASC, startMinute ASC")
     fun getClassesForDay(dayOfWeek: Int): Flow<List<LectureClassEntity>>
 
@@ -98,6 +110,9 @@ interface LectureClassDao {
 interface LectureMaterialDao {
     @Query("SELECT * FROM lecture_materials ORDER BY importDate DESC")
     fun getAllMaterials(): Flow<List<LectureMaterialEntity>>
+
+    @Query("SELECT * FROM lecture_materials ORDER BY importDate DESC")
+    suspend fun getAllMaterialsList(): List<LectureMaterialEntity>
 
     @Query("SELECT * FROM lecture_materials WHERE courseId = :courseId ORDER BY importDate DESC")
     fun getMaterialsForCourse(courseId: Long): Flow<List<LectureMaterialEntity>>
@@ -123,6 +138,9 @@ interface StudySessionDao {
     @Query("SELECT * FROM study_sessions ORDER BY dayOfWeek ASC, startHour ASC, startMinute ASC")
     fun getAllSessions(): Flow<List<StudySessionEntity>>
 
+    @Query("SELECT * FROM study_sessions ORDER BY dayOfWeek ASC, startHour ASC, startMinute ASC")
+    suspend fun getAllSessionsList(): List<StudySessionEntity>
+
     @Query("SELECT * FROM study_sessions WHERE dayOfWeek = :dayOfWeek ORDER BY startHour ASC, startMinute ASC")
     fun getSessionsForDay(dayOfWeek: Int): Flow<List<StudySessionEntity>>
 
@@ -141,6 +159,9 @@ interface StudySessionDao {
     // Tasks
     @Query("SELECT * FROM study_tasks ORDER BY isCompleted ASC, dueDate ASC")
     fun getAllTasks(): Flow<List<StudyTaskEntity>>
+
+    @Query("SELECT * FROM study_tasks ORDER BY isCompleted ASC, dueDate ASC")
+    suspend fun getAllTasksList(): List<StudyTaskEntity>
 
     @Query("SELECT * FROM study_tasks WHERE lectureClassId = :classId ORDER BY isCompleted ASC, dueDate ASC")
     fun getTasksForClass(classId: Long): Flow<List<StudyTaskEntity>>
@@ -163,6 +184,9 @@ interface RevisionDao {
     @Query("SELECT * FROM flashcards ORDER BY id DESC")
     fun getAllFlashcards(): Flow<List<FlashcardEntity>>
 
+    @Query("SELECT * FROM flashcards ORDER BY id DESC")
+    suspend fun getAllFlashcardsList(): List<FlashcardEntity>
+
     @Query("SELECT * FROM flashcards WHERE courseId = :courseId ORDER BY id DESC")
     fun getFlashcardsForCourse(courseId: Long): Flow<List<FlashcardEntity>>
 
@@ -181,6 +205,9 @@ interface RevisionDao {
     // Quizzes
     @Query("SELECT * FROM quiz_questions ORDER BY id ASC")
     fun getAllQuizzes(): Flow<List<QuizQuestionEntity>>
+
+    @Query("SELECT * FROM quiz_questions ORDER BY id ASC")
+    suspend fun getAllQuizzesList(): List<QuizQuestionEntity>
 
     @Query("SELECT * FROM quiz_questions WHERE courseId = :courseId ORDER BY id ASC")
     fun getQuizzesForCourse(courseId: Long): Flow<List<QuizQuestionEntity>>

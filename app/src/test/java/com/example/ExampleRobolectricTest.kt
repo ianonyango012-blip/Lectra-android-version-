@@ -25,6 +25,9 @@ class ExampleRobolectricTest {
     val symbolDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_lectra_symbol)
     org.junit.Assert.assertNotNull("ic_lectra_symbol must be non-null", symbolDrawable)
 
+    val openBookDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_lectra_open_book)
+    org.junit.Assert.assertNotNull("ic_lectra_open_book must be non-null", openBookDrawable)
+
     val launcherDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
     org.junit.Assert.assertNotNull("ic_launcher must be non-null", launcherDrawable)
   }

@@ -107,6 +107,55 @@ class LectraRepository(
         return Pair(name, size)
     }
 
+    /**
+     * Copies an imported document (e.g. Lecture PDF) into app-internal storage
+     * so it persists locally and offline without relying on temporary SAF permissions.
+     */
+    fun saveFileToInternalStorage(uri: Uri): String {
+        return try {
+            val (name, _) = resolveDocumentDetails(uri)
+            val lecturesDir = java.io.File(context.filesDir, "lectures").apply { if (!exists()) mkdirs() }
+            val sanitizedName = "${System.currentTimeMillis()}_${name.replace("[^a-zA-Z0-9._-]".toRegex(), "_")}"
+            val destFile = java.io.File(lecturesDir, sanitizedName)
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                java.io.FileOutputStream(destFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return uri.toString()
+            destFile.absolutePath
+        } catch (_: Exception) {
+            uri.toString()
+        }
+    }
+
+    // Backup and Restore Support Queries
+    suspend fun getAllCoursesList(): List<CourseEntity> = courseDao.getAllCoursesList()
+    suspend fun getAllUnitsList(): List<UnitEntity> = courseDao.getAllUnitsList()
+    suspend fun getAllTopicsList(): List<TopicEntity> = courseDao.getAllTopicsList()
+    suspend fun getAllMaterialsList(): List<LectureMaterialEntity> = materialDao.getAllMaterialsList()
+    suspend fun getAllLectureClassesList(): List<LectureClassEntity> = classDao.getAllLectureClassesList()
+    suspend fun getAllSessionsList(): List<StudySessionEntity> = sessionDao.getAllSessionsList()
+    suspend fun getAllTasksList(): List<StudyTaskEntity> = sessionDao.getAllTasksList()
+    suspend fun getAllFlashcardsList(): List<FlashcardEntity> = revisionDao.getAllFlashcardsList()
+    suspend fun getAllQuizzesList(): List<QuizQuestionEntity> = revisionDao.getAllQuizzesList()
+
+    // Backup and Restore Batch Inserts
+    suspend fun insertCourses(courses: List<CourseEntity>): List<Long> = courseDao.insertCourses(courses)
+    suspend fun insertUnits(units: List<UnitEntity>): List<Long> = courseDao.insertUnits(units)
+    suspend fun insertTopics(topics: List<TopicEntity>): List<Long> = courseDao.insertTopics(topics)
+    suspend fun insertMaterials(materials: List<LectureMaterialEntity>): List<Long> = materialDao.insertMaterials(materials)
+    suspend fun insertLectureClasses(classes: List<LectureClassEntity>): List<Long> = classDao.insertLectureClasses(classes)
+    suspend fun insertSessions(sessions: List<StudySessionEntity>): List<Long> = sessionDao.insertSessions(sessions)
+    suspend fun insertTasks(tasks: List<StudyTaskEntity>): List<Long> = sessionDao.insertTasks(tasks)
+    suspend fun insertFlashcards(flashcards: List<FlashcardEntity>): List<Long> = revisionDao.insertFlashcards(flashcards)
+    suspend fun insertQuizzes(quizzes: List<QuizQuestionEntity>): List<Long> = revisionDao.insertQuizzes(quizzes)
+
+    suspend fun clearAllTables() {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            database.clearAllTables()
+        }
+    }
+
     suspend fun resetAndReseedDatabase() {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             database.clearAllTables()

@@ -58,9 +58,9 @@ fun AddCourseDialog(
     var title by remember { mutableStateOf("") }
     var lecturer by remember { mutableStateOf("") }
     var targetHours by remember { mutableStateOf("6") }
-    var selectedColor by remember { mutableStateOf("#D97706") }
+    var selectedColor by remember { mutableStateOf("#7565F6") }
 
-    val colorPalette = listOf("#D97706", "#B45309", "#2D5A46", "#2563EB", "#9333EA", "#DC2626")
+    val colorPalette = listOf("#7565F6", "#6252E8", "#16A34A", "#D97706", "#2563EB", "#DC2626")
 
     AlertDialog(
         onDismissRequest = onDismiss,

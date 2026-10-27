@@ -60,14 +60,18 @@ data class LectraUiState(
     val isQuizFinished: Boolean = false,
     // AI Status
     val aiStatus: AiServiceStatus = AiServiceStatus.MISSING_API_KEY,
+    // Theme Mode (LIGHT by default)
+    val themeMode: com.example.ui.theme.ThemeMode = com.example.ui.theme.ThemeMode.LIGHT,
     // Feedback / Error messages
     val userNotice: String? = null
 )
 
 class LectraViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: LectraRepository
+    val repository: LectraRepository
+    val backupManager: com.example.data.backup.BackupManager
     private val aiService = LectraAiStudyService()
+    private val prefs = application.getSharedPreferences("lectra_prefs", android.content.Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(LectraUiState())
     val uiState: StateFlow<LectraUiState> = _uiState.asStateFlow()
@@ -75,6 +79,13 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     init {
         val db = LectraDatabase.getDatabase(application, viewModelScope)
         repository = LectraRepository(db, application)
+        backupManager = com.example.data.backup.BackupManager(repository, application)
+
+        val savedThemeStr = prefs.getString("app_theme_mode", com.example.ui.theme.ThemeMode.LIGHT.name)
+            ?: com.example.ui.theme.ThemeMode.LIGHT.name
+        val initialTheme = runCatching { com.example.ui.theme.ThemeMode.valueOf(savedThemeStr) }
+            .getOrDefault(com.example.ui.theme.ThemeMode.LIGHT)
+        _uiState.value = _uiState.value.copy(themeMode = initialTheme)
 
         updateDeviceTime()
 
@@ -650,6 +661,11 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         } else {
             _uiState.value.quizzes.filter { it.courseId == filterId }
         }
+    }
+
+    fun setThemeMode(mode: com.example.ui.theme.ThemeMode) {
+        prefs.edit().putString("app_theme_mode", mode.name).apply()
+        _uiState.value = _uiState.value.copy(themeMode = mode)
     }
 
     fun resetToDemoData() {
