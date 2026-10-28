@@ -47,20 +47,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Add
 import com.example.data.model.CourseEntity
 
 @Composable
 fun AddCourseDialog(
     onDismiss: () -> Unit,
-    onConfirm: (code: String, title: String, lecturer: String, colorHex: String, targetHours: Int) -> Unit
+    onConfirm: (code: String, title: String, lecturer: String, colorHex: String, targetHours: Int) -> Unit,
+    onConfirmWithUnits: (code: String, title: String, lecturer: String, colorHex: String, targetHours: Int, units: List<String>) -> Unit = { c, t, l, cl, h, us -> onConfirm(c, t, l, cl, h) }
 ) {
     var code by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var lecturer by remember { mutableStateOf("") }
     var targetHours by remember { mutableStateOf("6") }
     var selectedColor by remember { mutableStateOf("#7565F6") }
+    var isMultipleUnits by remember { mutableStateOf(true) }
+    var unitList by remember { mutableStateOf(mutableListOf("Unit 1: Introduction", "Unit 2: Core Concepts")) }
 
-    val colorPalette = listOf("#7565F6", "#6252E8", "#16A34A", "#D97706", "#2563EB", "#DC2626")
+    val colorPalette = listOf("#7565F6", "#2563EB", "#10B981", "#D97706", "#EC4899", "#8B5CF6")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -103,6 +110,83 @@ fun AddCourseDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Text(
+                    text = "Course Structure",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { isMultipleUnits = false }
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = !isMultipleUnits,
+                            onClick = { isMultipleUnits = false }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Standalone", fontSize = 13.sp)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { isMultipleUnits = true }
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = isMultipleUnits,
+                            onClick = { isMultipleUnits = true }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Multiple Units", fontSize = 13.sp)
+                    }
+                }
+
+                if (isMultipleUnits) {
+                    Text(
+                        text = "Course Units",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    unitList.forEachIndexed { index, unitName ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = unitName,
+                                onValueChange = { newValue ->
+                                    unitList = unitList.toMutableList().apply { this[index] = newValue }
+                                },
+                                label = { Text("Unit ${index + 1}") },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("unit_input_$index")
+                            )
+                            if (unitList.size > 1) {
+                                IconButton(onClick = {
+                                    unitList = unitList.toMutableList().apply { removeAt(index) }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Remove Unit", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            unitList = unitList.toMutableList().apply { add("Unit ${size + 1}") }
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Unit", fontSize = 13.sp)
+                    }
+                }
+
                 Text(
                     text = "Select Course Accent Color",
                     style = MaterialTheme.typography.labelMedium,
@@ -145,7 +229,11 @@ fun AddCourseDialog(
                 onClick = {
                     if (code.isNotBlank() && title.isNotBlank()) {
                         val hours = targetHours.toIntOrNull() ?: 6
-                        onConfirm(code, title, lecturer, selectedColor, hours)
+                        if (isMultipleUnits) {
+                            onConfirmWithUnits(code, title, lecturer, selectedColor, hours, unitList)
+                        } else {
+                            onConfirmWithUnits(code, title, lecturer, selectedColor, hours, emptyList())
+                        }
                         onDismiss()
                     }
                 },

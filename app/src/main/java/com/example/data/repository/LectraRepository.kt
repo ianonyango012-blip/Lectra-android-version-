@@ -33,6 +33,7 @@ class LectraRepository(
     suspend fun deleteCourse(course: CourseEntity) = courseDao.deleteCourse(course)
 
     fun getUnitsForCourse(courseId: Long): Flow<List<UnitEntity>> = courseDao.getUnitsForCourse(courseId)
+    fun getAllUnits(): Flow<List<UnitEntity>> = courseDao.getAllUnits()
     suspend fun insertUnit(unit: UnitEntity): Long = courseDao.insertUnit(unit)
     suspend fun deleteUnit(unit: UnitEntity) = courseDao.deleteUnit(unit)
 

@@ -28,6 +28,9 @@ interface CourseDao {
     @Query("SELECT * FROM units ORDER BY unitNumber ASC")
     suspend fun getAllUnitsList(): List<UnitEntity>
 
+    @Query("SELECT * FROM units ORDER BY unitNumber ASC")
+    fun getAllUnits(): Flow<List<UnitEntity>>
+
     @Query("SELECT * FROM topics ORDER BY id ASC")
     suspend fun getAllTopicsList(): List<TopicEntity>
 

@@ -7,35 +7,36 @@ import androidx.compose.ui.graphics.Color
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// 1. Light Theme — Default Appearance (White & Violet)
+// 1. Light Theme — Exact White & Violet Specification
 // ----------------------------------------------------------------------------
-val LectraLightPrimaryBg = Color(0xFFFFFFFF)        // Primary background: clean white
-val LectraLightSecondaryBg = Color(0xFFF8F9FC)      // Secondary background
-val LectraLightCardBg = Color(0xFFFFFFFF)           // Card background: white
-val LectraLightPrimaryAccent = Color(0xFF7565F6)    // Primary accent: violet
-val LectraLightAccentPressed = Color(0xFF6252E8)    // Accent pressed/active: deeper violet
-val LectraLightSoftLavender = Color(0xFFF5F3FF)     // Soft lavender background
-val LectraLightPrimaryText = Color(0xFF1F2937)      // Primary text: dark grey
-val LectraLightSecondaryText = Color(0xFF64748B)    // Secondary text: slate grey
-val LectraLightBorder = Color(0xFFE8EAF0)           // Borders and dividers: soft grey
+val LectraLightPrimaryBg = Color(0xFFFFFFFF)        // Main background: #FFFFFF
+val LectraLightPrimaryText = Color(0xFF0B1020)      // Primary text: #0B1020
+val LectraLightSecondaryText = Color(0xFF64748B)    // Secondary text: #64748B
+val LectraLightPrimaryAccent = Color(0xFF7565F6)    // Primary violet: #7565F6
+val LectraLightSoftLavender = Color(0xFFF5F3FF)     // Pale lavender surfaces: #F5F3FF
+val LectraLightBorder = Color(0xFFE3E7F2)           // Borders: #E3E7F2
+val LectraLightCardBg = Color(0xFFFFFFFF)           // White cards: #FFFFFF
+val LectraLightSecondaryBg = Color(0xFFF5F3FF)      // Secondary surfaces
+val LectraLightAccentPressed = Color(0xFF6252E8)    // Pressed violet
 val LectraLightDisabled = Color(0xFFCBD5E1)         // Disabled controls
 val LectraLightSuccess = Color(0xFF16A34A)          // Semantic success
 val LectraLightWarning = Color(0xFFD97706)          // Semantic warning
 val LectraLightError = Color(0xFFDC2626)            // Semantic error
 
 // ----------------------------------------------------------------------------
-// 2. Dark Theme — Night-friendly Charcoal / Navy & Violet
+// 2. Dark Theme — Exact Dark Navy & Violet Specification
 // ----------------------------------------------------------------------------
-val LectraDarkPrimaryBg = Color(0xFF0B1020)         // Primary background: deep charcoal/navy
-val LectraDarkSecondaryBg = Color(0xFF10172A)       // Secondary background
-val LectraDarkCardBg = Color(0xFF151D32)            // Card background
-val LectraDarkCardElevated = Color(0xFF1B2640)      // Elevated card background
-val LectraDarkPrimaryAccent = Color(0xFF806BFF)     // Primary accent: bright violet
-val LectraDarkAccentPressed = Color(0xFF9587FF)     // Accent pressed/active: lighter violet
-val LectraDarkSoftViolet = Color(0xFF27234A)        // Soft violet background
-val LectraDarkPrimaryText = Color(0xFFF1F5F9)       // Primary text: light off-white
-val LectraDarkSecondaryText = Color(0xFFA5B4CF)     // Secondary text: muted blue-grey
-val LectraDarkBorder = Color(0xFF29344D)            // Borders and dividers
+val LectraDarkPrimaryBg = Color(0xFF0B1020)         // Main background: #0B1020
+val LectraDarkCardBg = Color(0xFF111B36)            // Card background: #111B36
+val LectraDarkSecondaryCardBg = Color(0xFF17244A)   // Secondary card background: #17244A
+val LectraDarkSecondaryBg = Color(0xFF17244A)       // Secondary background: #17244A
+val LectraDarkCardElevated = Color(0xFF17244A)      // Elevated card: #17244A
+val LectraDarkPrimaryText = Color(0xFFF8FAFC)       // Primary text: #F8FAFC
+val LectraDarkSecondaryText = Color(0xFFB7C3E0)     // Secondary text: #B7C3E0
+val LectraDarkPrimaryAccent = Color(0xFF806BFF)     // Primary violet: #806BFF
+val LectraDarkBorder = Color(0xFF293966)            // Borders: #293966
+val LectraDarkAccentPressed = Color(0xFF9587FF)     // Pressed violet
+val LectraDarkSoftViolet = Color(0xFF1E1B4B)        // Soft violet container
 val LectraDarkDisabled = Color(0xFF64748B)          // Disabled controls
 val LectraDarkSuccess = Color(0xFF4ADE80)           // Semantic success (dark mode)
 val LectraDarkWarning = Color(0xFFFBBF24)           // Semantic warning (dark mode)

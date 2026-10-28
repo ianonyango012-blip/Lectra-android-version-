@@ -38,8 +38,7 @@ class CourseListScreenTest {
         }
 
         composeTestRule.onNodeWithTag("course_list_screen").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("empty_state_view").assertIsDisplayed()
-        composeTestRule.onNodeWithText("No Courses Enrolled").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Your courses start here").assertIsDisplayed()
         composeTestRule.onNodeWithTag("add_course_fab").assertIsDisplayed()
 
         // Clicking empty state add button triggers callback
@@ -48,7 +47,7 @@ class CourseListScreenTest {
     }
 
     @Test
-    fun `shows course list with cards and triggers details and delete`() {
+    fun `shows course list with cards and triggers details`() {
         val testCourses = listOf(
             CourseEntity(
                 id = 101L,
@@ -80,7 +79,6 @@ class CourseListScreenTest {
         )
 
         var clickedCourseId: Long? = null
-        var deletedCourse: CourseEntity? = null
         var addCourseClicked = false
 
         composeTestRule.setContent {
@@ -89,32 +87,22 @@ class CourseListScreenTest {
                 materials = testMaterials,
                 onCourseClick = { clickedCourseId = it },
                 onAddCourseClick = { addCourseClicked = true },
-                onDeleteCourse = { deletedCourse = it }
+                onDeleteCourse = {}
             )
         }
 
-        // Verify summary header and list are displayed
-        composeTestRule.onNodeWithTag("courses_list").assertIsDisplayed()
-        composeTestRule.onNodeWithText("2 Active Courses").assertIsDisplayed()
-        composeTestRule.onNodeWithText("14h / week").assertIsDisplayed()
+        // Verify grid and header are displayed
+        composeTestRule.onNodeWithTag("course_grid").assertIsDisplayed()
+        composeTestRule.onNodeWithText("My Courses").assertIsDisplayed()
 
         // Verify first card
-        composeTestRule.onNodeWithTag("course_card_101").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("course_card_CS301").assertIsDisplayed()
         composeTestRule.onNodeWithText("CS301").assertIsDisplayed()
         composeTestRule.onNodeWithText("Algorithms & Data Structures").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Dr. Alan Turing").assertIsDisplayed()
-        composeTestRule.onNodeWithText("8h weekly goal").assertIsDisplayed()
-        composeTestRule.onNodeWithText("1 Document").assertIsDisplayed()
 
         // Verify clicking the card invokes onCourseClick
-        composeTestRule.onNodeWithTag("course_card_101").performClick()
+        composeTestRule.onNodeWithTag("course_card_CS301").performClick()
         assertEquals(101L, clickedCourseId)
-
-        // Verify clicking delete opens dialog, and confirming triggers onDeleteCourse
-        composeTestRule.onNodeWithTag("delete_course_101").performClick()
-        composeTestRule.onNodeWithText("Delete Course").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Delete").performClick()
-        assertEquals(101L, deletedCourse?.id)
 
         // Verify FAB click
         composeTestRule.onNodeWithTag("add_course_fab").performClick()

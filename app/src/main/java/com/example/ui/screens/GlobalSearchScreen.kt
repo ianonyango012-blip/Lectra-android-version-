@@ -27,6 +27,9 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Topic
+import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -62,7 +65,8 @@ fun GlobalSearchScreen(
     uiState: LectraUiState,
     onBackClick: () -> Unit,
     onQueryChanged: (String) -> Unit,
-    onOpenCourse: (Long) -> Unit
+    onOpenCourse: (Long) -> Unit,
+    onOpenResearch: (String) -> Unit = {}
 ) {
     BackHandler { onBackClick() }
 
@@ -70,7 +74,7 @@ fun GlobalSearchScreen(
 
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        runCatching { focusRequester.requestFocus() }
     }
 
     // Filter Lessons (LectureClasses), Notes (Topics with summaryNotes or titles), and PDFs (Materials)
@@ -233,6 +237,21 @@ fun GlobalSearchScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { onOpenResearch(uiState.searchQuery) },
+                        modifier = Modifier.testTag("global_search_google_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TravelExplore,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Search \"${uiState.searchQuery}\" on Google")
+                    }
                 }
             }
         } else {
@@ -278,6 +297,47 @@ fun GlobalSearchScreen(
                         course = course,
                         onClick = { onOpenCourse(material.courseId) }
                     )
+                }
+            }
+
+            // 5. Google Research Integration Footer
+            item(key = "web_research_footer") {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clickable { onOpenResearch(uiState.searchQuery) }
+                        .testTag("global_search_research_footer"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TravelExplore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Research on Google",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Find scholarly articles, lectures & proofs for \"${uiState.searchQuery}\"",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }

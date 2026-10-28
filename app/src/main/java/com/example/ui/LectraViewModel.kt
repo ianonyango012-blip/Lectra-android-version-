@@ -1,6 +1,8 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -43,6 +45,7 @@ data class LectraUiState(
     val courses: List<CourseEntity> = emptyList(),
     val classes: List<LectureClassEntity> = emptyList(),
     val materials: List<LectureMaterialEntity> = emptyList(),
+    val units: List<UnitEntity> = emptyList(),
     val sessions: List<StudySessionEntity> = emptyList(),
     val tasks: List<StudyTaskEntity> = emptyList(),
     val flashcards: List<FlashcardEntity> = emptyList(),
@@ -77,6 +80,13 @@ data class LectraUiState(
     val timerElapsedSecondsThisSession: Int = 0,
     // Global Search Query
     val searchQuery: String = "",
+    // Google Research Query & Recent Searches
+    val researchQuery: String = "",
+    val recentResearchSearches: List<String> = listOf(
+        "Distributed consensus Raft",
+        "Linear algebra eigenvectors",
+        "Molecular genetics replication fork"
+    ),
     // AI Status
     val aiStatus: AiServiceStatus = AiServiceStatus.MISSING_API_KEY,
     // Theme Mode (LIGHT by default)
@@ -110,7 +120,7 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         updateDeviceTime()
 
         // Periodic ticker to keep class statuses up-to-date in real time
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(30000) // check every 30 seconds
                 updateDeviceTime()
@@ -123,9 +133,10 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
             combine(
                 repository.getAllCourses(),
                 repository.getAllLectureClasses(),
-                repository.getAllMaterials()
-            ) { courses, classes, materials ->
-                Triple(courses, classes, materials)
+                repository.getAllMaterials(),
+                repository.getAllUnits()
+            ) { courses, classes, materials, units ->
+                CoursesBundle(courses, classes, materials, units)
             }.combine(
                 combine(
                     repository.getAllSessions(),
@@ -137,12 +148,13 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
                 ) { sessions, tasks, (flashcards, quizzes) ->
                     Triple(sessions, tasks, Pair(flashcards, quizzes))
                 }
-            ) { (courses, classes, materials), (sessions, tasks, revPair) ->
+            ) { bundle, (sessions, tasks, revPair) ->
                 val (flashcards, quizzes) = revPair
                 _uiState.value.copy(
-                    courses = courses,
-                    classes = classes,
-                    materials = materials,
+                    courses = bundle.courses,
+                    classes = bundle.classes,
+                    materials = bundle.materials,
+                    units = bundle.units,
                     sessions = sessions,
                     tasks = tasks,
                     flashcards = flashcards,
@@ -242,6 +254,53 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
                     description = "Introductory concepts and syllabus outline"
                 )
             )
+            showNotice("Course $code created successfully.")
+        }
+    }
+
+    fun addCourseWithUnits(
+        code: String,
+        title: String,
+        lecturer: String,
+        colorHex: String,
+        targetHours: Int,
+        unitTitles: List<String>
+    ) {
+        viewModelScope.launch {
+            val id = repository.insertCourse(
+                CourseEntity(
+                    code = code.trim(),
+                    title = title.trim(),
+                    colorHex = colorHex,
+                    lecturer = lecturer.trim(),
+                    semester = "Current Term",
+                    targetWeeklyHours = targetHours
+                )
+            )
+            if (unitTitles.isNotEmpty()) {
+                unitTitles.forEachIndexed { index, unitTitle ->
+                    if (unitTitle.isNotBlank()) {
+                        repository.insertUnit(
+                            UnitEntity(
+                                courseId = id,
+                                unitNumber = index + 1,
+                                title = unitTitle.trim(),
+                                description = "Course unit"
+                            )
+                        )
+                    }
+                }
+            } else {
+                // Standalone or default unit
+                repository.insertUnit(
+                    UnitEntity(
+                        courseId = id,
+                        unitNumber = 1,
+                        title = "General Course Content",
+                        description = "Standalone course materials"
+                    )
+                )
+            }
             showNotice("Course $code created successfully.")
         }
     }
@@ -931,9 +990,71 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
+    // ==========================================
+    // GOOGLE RESEARCH & WEB CONCEPT SEARCH
+    // ==========================================
+
+    fun openResearch(initialQuery: String = "") {
+        _uiState.value = _uiState.value.copy(
+            researchQuery = initialQuery,
+            currentSubScreen = SubScreen.RESEARCH
+        )
+    }
+
+    fun setResearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(researchQuery = query)
+    }
+
+    fun executeGoogleSearch(context: Context, rawQuery: String) {
+        val trimmed = rawQuery.trim()
+        if (trimmed.isBlank()) {
+            showNotice("Please enter a topic or concept to research.")
+            return
+        }
+
+        // Add to recent searches (deduplicated, latest first)
+        val currentRecent = _uiState.value.recentResearchSearches.toMutableList()
+        currentRecent.remove(trimmed)
+        currentRecent.add(0, trimmed)
+        _uiState.value = _uiState.value.copy(
+            researchQuery = trimmed,
+            recentResearchSearches = currentRecent.take(10)
+        )
+
+        // Properly construct search URL using Android Uri.Builder for automatic standard percent-encoding
+        val searchUri = Uri.Builder()
+            .scheme("https")
+            .authority("www.google.com")
+            .appendPath("search")
+            .appendQueryParameter("q", trimmed)
+            .build()
+
+        val intent = Intent(Intent.ACTION_VIEW, searchUri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        try {
+            context.startActivity(intent)
+            showNotice("Opening Google Search for '$trimmed'...")
+        } catch (_: ActivityNotFoundException) {
+            showNotice("No web browser found to open search results.")
+        } catch (e: Exception) {
+            showNotice("Could not open browser: ${e.localizedMessage}")
+        }
+    }
+
     fun setThemeMode(mode: com.example.ui.theme.ThemeMode) {
         prefs.edit().putString("app_theme_mode", mode.name).apply()
         _uiState.value = _uiState.value.copy(themeMode = mode)
+    }
+
+    fun toggleTheme() {
+        val nextMode = if (_uiState.value.themeMode == com.example.ui.theme.ThemeMode.DARK) {
+            com.example.ui.theme.ThemeMode.LIGHT
+        } else {
+            com.example.ui.theme.ThemeMode.DARK
+        }
+        setThemeMode(nextMode)
     }
 
     fun resetToDemoData() {
@@ -952,3 +1073,10 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(userNotice = message)
     }
 }
+
+private data class CoursesBundle(
+    val courses: List<CourseEntity>,
+    val classes: List<LectureClassEntity>,
+    val materials: List<LectureMaterialEntity>,
+    val units: List<UnitEntity>
+)

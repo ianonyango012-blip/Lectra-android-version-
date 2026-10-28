@@ -52,9 +52,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import com.example.ui.screens.ResearchScreen
 import com.example.ui.theme.LectraTheme
 import com.example.ui.welcome.WelcomeScreen
 
@@ -181,12 +183,14 @@ fun LectraApp(
 
     val isFullStudyScreen = uiState.currentSubScreen == SubScreen.FLASHCARD_STUDY || 
             uiState.currentSubScreen == SubScreen.QUIZ_STUDY ||
-            uiState.currentSubScreen == SubScreen.POMODORO_TIMER
+            uiState.currentSubScreen == SubScreen.POMODORO_TIMER ||
+            uiState.currentSubScreen == SubScreen.GLOBAL_SEARCH ||
+            uiState.currentSubScreen == SubScreen.RESEARCH
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            if (!isFullStudyScreen && uiState.currentSubScreen != SubScreen.COURSE_DETAIL) {
+            if (!isFullStudyScreen && uiState.currentSubScreen != SubScreen.COURSE_DETAIL && uiState.currentDestination != LectraDestination.HOME && uiState.currentDestination != LectraDestination.SEARCH) {
                 LectraTopBar(
                     title = "LECTRA",
                     subtitle = when (uiState.currentDestination) {
@@ -194,9 +198,20 @@ fun LectraApp(
                         LectraDestination.COURSES -> "My University Courses"
                         LectraDestination.PLANNER -> "Study Timetable & Deadlines"
                         LectraDestination.REVISION -> "Active Recall & Quizzes"
+                        LectraDestination.SEARCH -> "Google Search"
                         LectraDestination.SETTINGS -> "Profile & Preferences"
                     },
                     actions = {
+                        IconButton(
+                            onClick = { viewModel.openResearch() },
+                            modifier = Modifier.testTag("top_bar_research_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TravelExplore,
+                                contentDescription = "Research",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         IconButton(
                             onClick = { viewModel.openGlobalSearch() },
                             modifier = Modifier.testTag("top_bar_search_button")
@@ -245,11 +260,14 @@ fun LectraApp(
                     val course = uiState.courses.find { it.id == uiState.selectedCourseId }
                     if (course != null) {
                         val courseMaterials = uiState.materials.filter { it.courseId == course.id }
+                        val courseTasks = uiState.tasks.filter { it.courseId == course.id }
                         CourseDetailScreen(
                             course = course,
                             units = uiState.courseUnits,
                             topics = uiState.courseTopics,
                             materials = courseMaterials,
+                            tasks = courseTasks,
+                            themeMode = uiState.themeMode,
                             onBackClick = { viewModel.closeSubScreen() },
                             onAddUnit = { num, title, desc -> viewModel.addUnit(course.id, num, title, desc) },
                             onAddTopic = { unitId, courseId, title, notes -> viewModel.addTopic(unitId, courseId, title, notes) },
@@ -259,7 +277,9 @@ fun LectraApp(
                             onStartFlashcards = { viewModel.startFlashcardStudy(it) },
                             onStartQuiz = { viewModel.startQuizStudy(it) },
                             onStartPomodoro = { viewModel.openPomodoroTimer(it) },
-                            onOpenMaterial = { viewModel.openPdfMaterial(it, context) }
+                            onOpenMaterial = { viewModel.openPdfMaterial(it, context) },
+                            onDeleteCourse = { viewModel.deleteCourse(it) },
+                            onToggleTask = { viewModel.toggleTaskCompletion(it) }
                         )
                     } else {
                         viewModel.closeSubScreen()
@@ -316,6 +336,20 @@ fun LectraApp(
                         onOpenCourse = { courseId ->
                             viewModel.closeSubScreen()
                             viewModel.openCourseDetail(courseId)
+                        },
+                        onOpenResearch = { query ->
+                            viewModel.openResearch(query)
+                        }
+                    )
+                }
+
+                SubScreen.RESEARCH -> {
+                    ResearchScreen(
+                        uiState = uiState,
+                        onBackClick = { viewModel.closeSubScreen() },
+                        onQueryChanged = { viewModel.setResearchQuery(it) },
+                        onExecuteSearch = { query ->
+                            viewModel.executeGoogleSearch(context, query)
                         }
                     )
                 }
@@ -337,7 +371,10 @@ fun LectraApp(
                                 onRequestPdfPicker = {
                                     generalPdfPickerLauncher.launch(arrayOf("application/pdf"))
                                 },
-                                onOpenPomodoro = { viewModel.openPomodoroTimer(it) }
+                                onOpenPomodoro = { viewModel.openPomodoroTimer(it) },
+                                onOpenResearch = { viewModel.openResearch(it) },
+                                onToggleTheme = { viewModel.toggleTheme() },
+                                onOpenMaterial = { viewModel.openPdfMaterial(it, context) }
                             )
                         }
 
@@ -345,9 +382,12 @@ fun LectraApp(
                             CourseListScreen(
                                 courses = uiState.courses,
                                 materials = uiState.materials,
+                                units = uiState.units,
+                                tasks = uiState.tasks,
                                 onCourseClick = { viewModel.openCourseDetail(it) },
                                 onAddCourseClick = { showAddCourseDialog = true },
-                                onDeleteCourse = { viewModel.deleteCourse(it) }
+                                onDeleteCourse = { viewModel.deleteCourse(it) },
+                                themeMode = uiState.themeMode
                             )
                         }
 
@@ -378,6 +418,17 @@ fun LectraApp(
                             )
                         }
 
+                        LectraDestination.SEARCH -> {
+                            ResearchScreen(
+                                uiState = uiState,
+                                onBackClick = { viewModel.navigateTo(LectraDestination.HOME) },
+                                onQueryChanged = { viewModel.setResearchQuery(it) },
+                                onExecuteSearch = { query ->
+                                    viewModel.executeGoogleSearch(context, query)
+                                }
+                            )
+                        }
+
                         LectraDestination.SETTINGS -> {
                             SettingsScreen(
                                 uiState = uiState,
@@ -399,6 +450,9 @@ fun LectraApp(
             onDismiss = { showAddCourseDialog = false },
             onConfirm = { code, title, lecturer, color, hours ->
                 viewModel.addCourse(code, title, lecturer, color, hours)
+            },
+            onConfirmWithUnits = { code, title, lecturer, color, hours, units ->
+                viewModel.addCourseWithUnits(code, title, lecturer, color, hours, units)
             }
         )
     }

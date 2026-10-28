@@ -1,9 +1,11 @@
 package com.example.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
+import android.content.Context
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,1029 +17,779 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Quiz
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.CourseEntity
-import com.example.data.model.FlashcardEntity
 import com.example.data.model.LectureClassEntity
 import com.example.data.model.LectureMaterialEntity
-import com.example.data.model.QuizQuestionEntity
 import com.example.data.model.StudySessionEntity
 import com.example.data.model.StudyTaskEntity
 import com.example.data.model.TopicEntity
 import com.example.ui.LectraUiState
+import com.example.ui.components.LectraBrandHeader
 import com.example.ui.navigation.LectraDestination
-import com.example.ui.theme.CampusGreen
-import com.example.ui.theme.CampusRed
+import com.example.ui.theme.ThemeMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Exact LECTRA Dashboard reproducing the visual reference screenshot in Light and Dark modes.
+ */
 @Composable
 fun HomeScreen(
     uiState: LectraUiState,
     onNavigate: (LectraDestination) -> Unit,
     onOpenCourse: (Long) -> Unit,
-    onToggleSession: (StudySessionEntity) -> Unit,
-    onToggleTask: (StudyTaskEntity) -> Unit,
-    onStartFlashcardStudy: (Long?) -> Unit,
-    onStartQuiz: (Long?) -> Unit,
-    onQuickAddCourse: () -> Unit,
-    onQuickAddSession: () -> Unit,
-    onQuickAddTask: () -> Unit,
-    onRequestPdfPicker: () -> Unit,
-    onOpenPomodoro: (Long?) -> Unit = {}
+    onToggleSession: (StudySessionEntity) -> Unit = {},
+    onToggleTask: (StudyTaskEntity) -> Unit = {},
+    onStartFlashcardStudy: (Long?) -> Unit = {},
+    onStartQuiz: (Long?) -> Unit = {},
+    onQuickAddCourse: () -> Unit = {},
+    onQuickAddSession: () -> Unit = {},
+    onQuickAddTask: () -> Unit = {},
+    onRequestPdfPicker: () -> Unit = {},
+    onOpenPomodoro: (Long?) -> Unit = {},
+    onOpenResearch: (String) -> Unit = {},
+    onToggleTheme: () -> Unit = {},
+    onOpenMaterial: (LectureMaterialEntity) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val isDark = when (uiState.themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
+    // Exact palette from specification
+    val mainBackground = if (isDark) Color(0xFF0B1020) else Color(0xFFFFFFFF)
+    val cardBackground = if (isDark) Color(0xFF111B36) else Color(0xFFFFFFFF)
+    val secondaryCardBg = if (isDark) Color(0xFF17244A) else Color(0xFFF5F3FF)
+    val primaryText = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0B1020)
+    val secondaryText = if (isDark) Color(0xFFB7C3E0) else Color(0xFF64748B)
+    val primaryViolet = if (isDark) Color(0xFF806BFF) else Color(0xFF7565F6)
+    val borderColor = if (isDark) Color(0xFF293966) else Color(0xFFE3E7F2)
+
+    val prefs = remember { context.getSharedPreferences("lectra_prefs", Context.MODE_PRIVATE) }
+    val studentName = remember(prefs) { prefs.getString("student_name", null)?.takeIf { it.isNotBlank() } }
+
+    val greetingPrefix = when (uiState.currentHour) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..21 -> "Good evening"
+        else -> "Welcome back"
+    }
+    val greetingText = if (studentName != null) {
+        "$greetingPrefix, $studentName ☀️"
+    } else {
+        "$greetingPrefix ☀️"
+    }
+
+    val currentDateStr = remember {
+        val sdf = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+        sdf.format(Date())
+    }
+
     val currentTimeInMinutes = uiState.currentHour * 60 + uiState.currentMinute
-    val todayDayOfWeek = uiState.currentDayOfWeek
-
-    // 1. Classes scheduled for the current day in chronological order (deduplicated)
-    val allTodayClasses = uiState.classes
-        .filter { it.dayOfWeek == todayDayOfWeek }
-        .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
-        .sortedBy { it.startHour * 60 + it.startMinute }
-
-    // 2. Active or upcoming classes today (end time has NOT passed)
-    val upcomingTodayClasses = allTodayClasses.filter {
-        val classEndInMinutes = it.endHour * 60 + it.endMinute
-        classEndInMinutes >= currentTimeInMinutes
+    val todayClasses = remember(uiState.classes, uiState.currentDayOfWeek) {
+        uiState.classes
+            .filter { it.dayOfWeek == uiState.currentDayOfWeek }
+            .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
+            .sortedBy { it.startHour * 60 + it.startMinute }
     }
 
-    // 3. Past classes today (for optional collapsible reference)
-    val passedTodayClasses = allTodayClasses.filter {
-        val classEndInMinutes = it.endHour * 60 + it.endMinute
-        classEndInMinutes < currentTimeInMinutes
+    // Determine upcoming/in-progress classes
+    val activeAndUpcomingClasses = remember(todayClasses, currentTimeInMinutes) {
+        todayClasses.filter {
+            val endInMinutes = it.endHour * 60 + it.endMinute
+            endInMinutes >= currentTimeInMinutes
+        }
     }
 
-    // 4. Find NEXT scheduled day with classes if no classes remain today
-    val nextScheduledDayInfo = remember(uiState.classes, todayDayOfWeek, upcomingTodayClasses.isEmpty()) {
-        if (upcomingTodayClasses.isEmpty() && uiState.classes.isNotEmpty()) {
-            var foundDayNum: Int? = null
-            var foundClasses: List<LectureClassEntity> = emptyList()
-            for (offset in 1..6) {
-                val candidateDay = ((todayDayOfWeek - 1 + offset) % 7) + 1
-                val candidateClasses = uiState.classes
-                    .filter { it.dayOfWeek == candidateDay }
-                    .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
-                    .sortedBy { it.startHour * 60 + it.startMinute }
-                if (candidateClasses.isNotEmpty()) {
-                    foundDayNum = candidateDay
-                    foundClasses = candidateClasses
-                    break
-                }
-            }
-            if (foundDayNum != null) Pair(foundDayNum, foundClasses) else null
-        } else null
-    }
-
-    // 5. Academic Study & Revision Computed Metrics
-    val todayPlannedSessions = uiState.sessions.filter { it.dayOfWeek == todayDayOfWeek }
-    val todayCompletedSessions = todayPlannedSessions.count { it.isCompleted }
-
-    val unreadMaterials = uiState.materials.filter { it.lastReadPage < it.totalPages }
-    val unmasteredTopicsWithNotes = uiState.courseTopics.filter { !it.isMastered && it.summaryNotes.isNotBlank() }
-    val pendingPracticeQuestions = uiState.quizzes.filter { !it.hasAnswered }
-    val upcomingAssessments = uiState.tasks.filter { !it.isCompleted }
-        .sortedWith(compareBy({ it.dueDate == null }, { it.dueDate }))
-
-    val weakRevisionCards = uiState.flashcards.filter {
-        it.lastRecallGrade == "AGAIN" || it.lastRecallGrade == "HARD" || it.repetitions == 0
-    }
+    // Real recent activity: user imported materials and topics
+    val recentMaterials = uiState.materials.take(3)
+    val recentTopics = uiState.courseTopics.take(3)
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .testTag("home_screen_timetable_scroll"),
-        contentPadding = PaddingValues(bottom = 90.dp)
+            .background(mainBackground)
+            .statusBarsPadding()
+            .testTag("home_screen_dashboard"),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // 1. LECTRA Header & Today's Date & Lecture Timetable Summary
-        item(key = "home_live_header") {
-            TodayLiveHeader(
-                dayOfWeekNum = todayDayOfWeek,
-                currentHour = uiState.currentHour,
-                currentMinute = uiState.currentMinute,
-                totalCourses = uiState.courses.size,
-                activeClassCount = upcomingTodayClasses.size
-            )
-        }
-
-        // 1.5 Pomodoro Focus Session Quick Card
-        item(key = "home_pomodoro_quick_card") {
-            PomodoroQuickCard(
-                isRunning = uiState.isTimerRunning,
-                remainingSeconds = uiState.timerRemainingSeconds,
-                completedCount = uiState.completedPomodoroCount,
-                selectedCourse = uiState.courses.find { it.id == uiState.selectedTimerCourseId } ?: uiState.courses.firstOrNull(),
-                onOpenPomodoro = { onOpenPomodoro(null) }
-            )
-        }
-
-        // 2 & 3. Today's Scheduled Classes Timetable
-        item(key = "home_timetable_header") {
-            TimetableSectionHeader(
-                hasClassesToday = upcomingTodayClasses.isNotEmpty(),
-                onAddClass = onQuickAddSession
-            )
-        }
-
-        if (upcomingTodayClasses.isNotEmpty()) {
-            items(upcomingTodayClasses, key = { "home_class_${it.id}" }) { lectureClass ->
-                val classStartInMinutes = lectureClass.startHour * 60 + lectureClass.startMinute
-                val classEndInMinutes = lectureClass.endHour * 60 + lectureClass.endMinute
-                val isActiveNow = currentTimeInMinutes in classStartInMinutes..classEndInMinutes
-
-                val classTasks = uiState.tasks.filter {
-                    it.lectureClassId == lectureClass.id ||
-                            (it.courseId == lectureClass.courseId && it.topicTitle.equals(lectureClass.topicOrLectureName, ignoreCase = true))
-                }.distinctBy { it.id }
-
-                ClassScheduleCard(
-                    lectureClass = lectureClass,
-                    isActiveNow = isActiveNow,
-                    tasks = classTasks,
-                    onToggleTask = onToggleTask,
-                    onOpenCourse = { onOpenCourse(lectureClass.courseId) }
-                )
-            }
-        } else {
-            item(key = "home_no_classes_banner") {
-                NoClassesTodayBanner(
-                    allTodayClassesCount = allTodayClasses.size,
-                    passedTodayCount = passedTodayClasses.size,
-                    nextDayInfo = nextScheduledDayInfo
-                )
-            }
-
-            if (nextScheduledDayInfo != null) {
-                val (nextDayNum, nextClasses) = nextScheduledDayInfo
-                item(key = "home_next_classes_header") {
-                    NextScheduledClassesHeader(nextDayNum = nextDayNum, classCount = nextClasses.size)
-                }
-                items(nextClasses, key = { "home_next_class_${it.id}" }) { lectureClass ->
-                    val classTasks = uiState.tasks.filter {
-                        it.lectureClassId == lectureClass.id ||
-                                (it.courseId == lectureClass.courseId && it.topicTitle.equals(lectureClass.topicOrLectureName, ignoreCase = true))
-                    }.distinctBy { it.id }
-                    ClassScheduleCard(
-                        lectureClass = lectureClass,
-                        isActiveNow = false,
-                        tasks = classTasks,
-                        onToggleTask = onToggleTask,
-                        onOpenCourse = { onOpenCourse(lectureClass.courseId) }
-                    )
-                }
-            }
-        }
-
-        // 4. Today's Study Progress
-        item(key = "home_progress_header") {
-            Spacer(modifier = Modifier.height(20.dp))
-            SectionDividerTitle(
-                title = "Today's Study Progress",
-                subtitle = "Logged sessions & term momentum"
-            )
-        }
-
-        item(key = "home_progress_card") {
-            TodayStudyProgressCard(
-                plannedCount = todayPlannedSessions.size,
-                completedCount = todayCompletedSessions,
-                todaySessions = todayPlannedSessions,
-                onToggleSession = onToggleSession,
-                onAddSession = onQuickAddSession
-            )
-        }
-
-        // 5. Individual Course Progress
-        item(key = "home_syllabus_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Course Syllabus Progress",
-                subtitle = "Mastered units & topics"
-            )
-        }
-
-        if (uiState.courses.isEmpty()) {
-            item(key = "home_empty_courses") {
-                EmptyNoticeCard("No enrolled courses yet. Tap '+ Course' to start.")
-            }
-        } else {
-            items(uiState.courses, key = { "home_course_${it.id}" }) { course ->
-                val courseTopics = uiState.courseTopics.filter { it.courseId == course.id }
-                val masteredCount = courseTopics.count { it.isMastered }
-                CourseProgressCard(
-                    course = course,
-                    masteredTopics = masteredCount,
-                    totalTopics = courseTopics.size,
-                    onClick = { onOpenCourse(course.id) }
-                )
-            }
-        }
-
-        // 6. Upcoming Assessments & Deadlines
-        item(key = "home_assessments_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Upcoming Assessments & Deadlines",
-                subtitle = "${upcomingAssessments.size} active tasks scheduled"
-            )
-        }
-
-        if (upcomingAssessments.isEmpty()) {
-            item(key = "home_empty_assessments") {
-                EmptyNoticeCard("No upcoming assignment deadlines recorded.")
-            }
-        } else {
-            items(upcomingAssessments.take(4), key = { "home_task_${it.id}" }) { task ->
-                UpcomingAssessmentItemCard(
-                    task = task,
-                    onToggle = { onToggleTask(task) }
-                )
-            }
-        }
-
-        // 7. Notes Due for Review
-        item(key = "home_notes_review_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Notes Requiring Review",
-                subtitle = "${unmasteredTopicsWithNotes.size} key lecture topics needing active recall"
-            )
-        }
-
-        if (unmasteredTopicsWithNotes.isEmpty()) {
-            item(key = "home_empty_notes") {
-                EmptyNoticeCard("All course notes reviewed and mastered! Excellent work.")
-            }
-        } else {
-            items(unmasteredTopicsWithNotes.take(3), key = { "home_topic_${it.id}" }) { topic ->
-                val course = uiState.courses.find { it.id == topic.courseId }
-                NoteReviewCard(
-                    topic = topic,
-                    courseCode = course?.code ?: "Course",
-                    onReview = { onOpenCourse(topic.courseId) }
-                )
-            }
-        }
-
-        // 8. Unread Lecture Materials
-        item(key = "home_unread_materials_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Unread Lecture Materials",
-                subtitle = "${unreadMaterials.size} slide decks pending completion"
-            )
-        }
-
-        if (unreadMaterials.isEmpty()) {
-            item(key = "home_empty_materials") {
-                EmptyNoticeCard("You have finished reading all imported lecture slide decks.")
-            }
-        } else {
-            items(unreadMaterials.take(3), key = { "home_material_${it.id}" }) { material ->
-                val course = uiState.courses.find { it.id == material.courseId }
-                UnreadMaterialCard(
-                    material = material,
-                    course = course,
-                    onOpen = { onOpenCourse(material.courseId) }
-                )
-            }
-        }
-
-        // 9 & 10. Pending Practice Questions & Weak Revision Areas
-        item(key = "home_revision_header") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SectionDividerTitle(
-                title = "Revision & Weak Areas",
-                subtitle = "Active recall questions & spaced repetition drills"
-            )
-        }
-
-        item(key = "home_revision_card") {
-            RevisionStatusCard(
-                pendingQuizCount = pendingPracticeQuestions.size,
-                weakCardsCount = weakRevisionCards.size,
-                totalFlashcards = uiState.flashcards.size,
-                onStartQuiz = { onStartQuiz(null) },
-                onDrillWeakCards = { onStartFlashcardStudy(null) }
-            )
-        }
-    }
-}
-
-// =========================================================================
-// TIMETABLE & CLASS CARD COMPONENTS
-// =========================================================================
-
-@Composable
-fun TodayLiveHeader(
-    dayOfWeekNum: Int,
-    currentHour: Int,
-    currentMinute: Int,
-    totalCourses: Int,
-    activeClassCount: Int
-) {
-    val dayName = getDayName(dayOfWeekNum)
-    val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
-    val formattedDate = dateFormat.format(Date())
-    val formattedTime = String.format("%02d:%02d", currentHour, currentMinute)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "$dayName, $formattedDate".uppercase(Locale.getDefault()),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = formattedTime,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Lecture Timetable",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = if (activeClassCount > 0) {
-                    "You have $activeClassCount upcoming lecture class${if (activeClassCount > 1) "es" else ""} remaining today."
-                } else {
-                    "No upcoming lectures active on your schedule for today."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun TimetableSectionHeader(
-    hasClassesToday: Boolean,
-    onAddClass: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Today's Scheduled Classes",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (hasClassesToday) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ClassScheduleCard(
-    lectureClass: LectureClassEntity,
-    isActiveNow: Boolean,
-    tasks: List<StudyTaskEntity>,
-    onToggleTask: (StudyTaskEntity) -> Unit,
-    onOpenCourse: () -> Unit
-) {
-    val accentColor = try {
-        Color(android.graphics.Color.parseColor(lectureClass.colorHex))
-    } catch (_: Exception) {
-        MaterialTheme.colorScheme.primary
-    }
-
-    val startTimeFormatted = String.format("%02d:%02d", lectureClass.startHour, lectureClass.startMinute)
-    val endTimeFormatted = String.format("%02d:%02d", lectureClass.endHour, lectureClass.endMinute)
-
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .testTag("class_schedule_card_${lectureClass.id}"),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isActiveNow) 4.dp else 2.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Top accent indicator for active vs scheduled
-            Box(
+        // ==========================================
+        // 1. DASHBOARD HEADER
+        // ==========================================
+        item(key = "dashboard_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (isActiveNow) 6.dp else 4.dp)
-                    .background(if (isActiveNow) CampusGreen else accentColor)
-            )
-
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Header Row: Course Code, Status Badge, Time Range
+                    .padding(top = 4.dp, bottom = 4.dp)
+            ) {
+                // Top Row: Logo Monogram + "Lectra" on left, Theme Toggle on right
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color = accentColor.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = lectureClass.courseCode,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = accentColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+                    LectraBrandHeader()
 
-                        if (isActiveNow) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                color = CampusGreen,
-                                shape = RoundedCornerShape(6.dp)
+                    // Circular Theme Toggle Button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0xFF17244A) else Color(0xFFF5F3FF))
+                            .border(1.dp, borderColor, CircleShape)
+                            .clickable { onToggleTheme() }
+                            .testTag("theme_toggle_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ThemeToggleIcon(isDark = isDark, tint = primaryViolet)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Second Row: Greeting with student name & Tagline
+                Text(
+                    text = greetingText,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryText,
+                    letterSpacing = (-0.3).sp,
+                    modifier = Modifier.testTag("dashboard_greeting_text")
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Your notes. Your structure. Your success.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = secondaryText
+                )
+            }
+        }
+
+        // ==========================================
+        // 2. TODAY'S CLASSES BANNER
+        // ==========================================
+        item(key = "todays_classes_banner") {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { onNavigate(LectraDestination.PLANNER) }
+                    .testTag("today_classes_banner"),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = secondaryCardBg),
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Rounded violet calendar icon box
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDark) Color(0xFF233566) else Color(0xFFECE8FD)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Today's Classes",
+                            tint = primaryViolet,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Today's Classes",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = primaryText
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Stay on track with your schedule",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = secondaryText
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open Timetable",
+                        tint = primaryViolet,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. TODAY TIMETABLE CARDS ROW
+        // ==========================================
+        item(key = "today_timetable_section") {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Section Title Row: "Today" on left, Date on right
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Today",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryText
+                    )
+                    Text(
+                        text = currentDateStr,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = secondaryText
+                    )
+                }
+
+                if (todayClasses.isEmpty()) {
+                    // Empty timetable state
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBackground),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = secondaryText,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No classes scheduled for today",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = secondaryText
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { onNavigate(LectraDestination.PLANNER) },
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryViolet),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("add_timetable_button")
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "ACTIVE NOW",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        color = Color.White
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Timetable", fontSize = 13.sp)
                             }
                         }
                     }
-
-                    // Chronological Time Badge
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "$startTimeFormatted - $endTimeFormatted",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Course Name
-                Text(
-                    text = lectureClass.courseName,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // Topic / Lecture Title
-                if (lectureClass.topicOrLectureName.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = lectureClass.topicOrLectureName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                // Venue
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "Venue",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (lectureClass.venue.isNotBlank()) lectureClass.venue else "Venue TBA / Online Session",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                // =========================================================
-                // CORRESPONDING ASSIGNMENTS (HIGHLIGHTED INSIDE CLASS CARD)
-                // =========================================================
-                Spacer(modifier = Modifier.height(14.dp))
-
-                if (tasks.isNotEmpty()) {
-                    tasks.forEach { task ->
-                        HighlightedAssignmentCard(
-                            task = task,
-                            onToggle = { onToggleTask(task) }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
                 } else {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    // Horizontally scrollable row of class cards
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("today_classes_horizontal_row"),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Assignment,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "No pending assignments for this lecture.",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        items(todayClasses, key = { it.id }) { lectureClass ->
+                            val classStartMinutes = lectureClass.startHour * 60 + lectureClass.startMinute
+                            val classEndMinutes = lectureClass.endHour * 60 + lectureClass.endMinute
+                            val isInProgress = currentTimeInMinutes in classStartMinutes..classEndMinutes
+                            val isCompleted = currentTimeInMinutes > classEndMinutes
+                            val isNext = !isInProgress && !isCompleted && activeAndUpcomingClasses.firstOrNull()?.id == lectureClass.id
+
+                            val course = uiState.courses.find { it.id == lectureClass.courseId }
+                            val courseName = course?.title?.takeIf { it.isNotBlank() }
+                                ?: course?.code
+                                ?: lectureClass.topicOrLectureName.takeIf { it.isNotBlank() }
+                                ?: "Lecture"
+
+                            // Assignment associated with this course
+                            val linkedTask = uiState.tasks.find { it.courseId == lectureClass.courseId && !it.isCompleted }
+
+                            ClassCardItem(
+                                courseName = courseName,
+                                venue = lectureClass.venue.ifBlank { "Campus" },
+                                startHour = lectureClass.startHour,
+                                startMinute = lectureClass.startMinute,
+                                endHour = lectureClass.endHour,
+                                endMinute = lectureClass.endMinute,
+                                isInProgress = isInProgress,
+                                isNext = isNext,
+                                isCompleted = isCompleted,
+                                linkedTask = linkedTask,
+                                isDark = isDark,
+                                cardBackground = cardBackground,
+                                borderColor = borderColor,
+                                primaryViolet = primaryViolet,
+                                primaryText = primaryText,
+                                secondaryText = secondaryText,
+                                onClick = { onOpenCourse(lectureClass.courseId) }
                             )
                         }
                     }
                 }
             }
         }
-    }
-}
 
-@Composable
-fun HighlightedAssignmentCard(
-    task: StudyTaskEntity,
-    onToggle: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(
-                1.5.dp,
-                if (task.isCompleted) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                RoundedCornerShape(12.dp)
-            ),
-        color = if (task.isCompleted) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        } else {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = task.isCompleted,
-                onCheckedChange = { onToggle() },
-                modifier = Modifier.size(32.dp)
-            )
+        // ==========================================
+        // 4. QUICK ACTIONS SECTION
+        // ==========================================
+        item(key = "quick_actions_section") {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Quick Actions",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryText,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
+                // 2x2 Grid of Quick Actions
+                Column(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Row 1: Import PDF & Add Notes
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        QuickActionTile(
+                            title = "Import PDF",
+                            subtitle = "Add lecture notes",
+                            iconBadgeType = BadgeType.PDF,
+                            isDark = isDark,
+                            cardBackground = cardBackground,
+                            borderColor = borderColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("quick_action_import_pdf"),
+                            onClick = onRequestPdfPicker
+                        )
+
+                        QuickActionTile(
+                            title = "Add Notes",
+                            subtitle = "Create new notes",
+                            iconBadgeType = BadgeType.DOCUMENT,
+                            isDark = isDark,
+                            cardBackground = cardBackground,
+                            borderColor = borderColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("quick_action_add_notes"),
+                            onClick = onQuickAddCourse
+                        )
+                    }
+
+                    // Row 2: Study Plan & Research
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        QuickActionTile(
+                            title = "Study Plan",
+                            subtitle = "Plan your study",
+                            iconBadgeType = BadgeType.CALENDAR,
+                            isDark = isDark,
+                            cardBackground = cardBackground,
+                            borderColor = borderColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("quick_action_study_plan"),
+                            onClick = { onNavigate(LectraDestination.PLANNER) }
+                        )
+
+                        QuickActionTile(
+                            title = "Research",
+                            subtitle = "Search the web",
+                            iconBadgeType = BadgeType.RESEARCH,
+                            isDark = isDark,
+                            cardBackground = cardBackground,
+                            borderColor = borderColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("quick_action_research"),
+                            onClick = { onOpenResearch("") }
+                        )
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. RECENT ACTIVITY SECTION
+        // ==========================================
+        item(key = "recent_activity_section") {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "ASSIGNMENT",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
+                        text = "Recent Activity",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryText
                     )
+                    Text(
+                        text = "View all  ›",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryViolet,
+                        modifier = Modifier
+                            .clickable { onNavigate(LectraDestination.COURSES) }
+                            .testTag("recent_activity_view_all")
+                    )
+                }
 
-                    // Priority Chip
-                    Surface(
-                        color = when (task.priority) {
-                            "HIGH" -> CampusRed.copy(alpha = 0.15f)
-                            "LOW" -> MaterialTheme.colorScheme.surfaceVariant
-                            else -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
-                        },
-                        shape = RoundedCornerShape(4.dp)
+                val hasRecentActivity = recentMaterials.isNotEmpty() || recentTopics.isNotEmpty()
+
+                if (!hasRecentActivity) {
+                    // Clean Empty State
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBackground),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
                     ) {
-                        Text(
-                            text = "${task.priority} PRIORITY",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
-                            color = when (task.priority) {
-                                "HIGH" -> CampusRed
-                                "LOW" -> MaterialTheme.colorScheme.onSurfaceVariant
-                                else -> MaterialTheme.colorScheme.secondary
-                            },
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = secondaryText,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Your created notes and imported lecture materials will appear here.",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = secondaryText,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onRequestPdfPicker,
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryViolet),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("recent_activity_import_pdf")
+                            ) {
+                                Text("Import PDF", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Display lecture materials (PDFs)
+                        recentMaterials.forEach { material ->
+                            val course = uiState.courses.find { it.id == material.courseId }
+                            val courseTitle = course?.title ?: course?.code ?: "Lecture Material"
+                            val timestampStr = formatTimestamp(material.importDate)
+
+                            RecentActivityCard(
+                                title = material.title,
+                                courseSubtitle = courseTitle,
+                                timestamp = timestampStr,
+                                isPdf = true,
+                                isDark = isDark,
+                                cardBackground = cardBackground,
+                                borderColor = borderColor,
+                                primaryText = primaryText,
+                                secondaryText = secondaryText,
+                                onClick = { onOpenMaterial(material) }
+                            )
+                        }
+
+                        // Display note topics
+                        recentTopics.forEach { topic ->
+                            val course = uiState.courses.find { it.id == topic.courseId }
+                            val courseTitle = course?.title ?: course?.code ?: "Course Notes"
+                            val timestampStr = "Updated recently"
+
+                            RecentActivityCard(
+                                title = topic.title,
+                                courseSubtitle = courseTitle,
+                                timestamp = timestampStr,
+                                isPdf = false,
+                                isDark = isDark,
+                                cardBackground = cardBackground,
+                                borderColor = borderColor,
+                                primaryText = primaryText,
+                                secondaryText = secondaryText,
+                                onClick = { onOpenCourse(topic.courseId) }
+                            )
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                // Actual Deadline
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.EventAvailable,
-                        contentDescription = "Deadline",
-                        tint = if (task.dueDate != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (task.dueDate != null) {
-                            val sdf = SimpleDateFormat("EEE, MMM d • HH:mm", Locale.getDefault())
-                            "Deadline: ${sdf.format(Date(task.dueDate))}"
-                        } else {
-                            "No deadline specified"
-                        },
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 11.sp,
-                            fontWeight = if (task.dueDate != null) FontWeight.Medium else FontWeight.Normal
-                        ),
-                        color = if (task.dueDate != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
+        }
+
+        // ==========================================
+        // 6. STUDY MOTIVATION CARD
+        // ==========================================
+        item(key = "study_motivation_card") {
+            StudyMotivationCard(
+                isDark = isDark,
+                borderColor = borderColor,
+                primaryViolet = primaryViolet,
+                primaryText = primaryText
+            )
         }
     }
 }
 
+/**
+ * Class card item in the horizontal scrollable timetable row.
+ */
 @Composable
-fun NoClassesTodayBanner(
-    allTodayClassesCount: Int,
-    passedTodayCount: Int,
-    nextDayInfo: Pair<Int, List<LectureClassEntity>>?
+private fun ClassCardItem(
+    courseName: String,
+    venue: String,
+    startHour: Int,
+    startMinute: Int,
+    endHour: Int,
+    endMinute: Int,
+    isInProgress: Boolean,
+    isNext: Boolean,
+    isCompleted: Boolean,
+    linkedTask: StudyTaskEntity?,
+    isDark: Boolean,
+    cardBackground: Color,
+    borderColor: Color,
+    primaryViolet: Color,
+    primaryText: Color,
+    secondaryText: Color,
+    onClick: () -> Unit
 ) {
+    val cardBorder = if (isInProgress) {
+        androidx.compose.foundation.BorderStroke(1.5.dp, primaryViolet)
+    } else {
+        androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    }
+
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            .width(230.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .testTag("class_card_$courseName"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        border = cardBorder
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(14.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = if (allTodayClassesCount > 0 && passedTodayCount == allTodayClassesCount) {
-                    "All lectures for today have concluded."
-                } else {
-                    "No classes scheduled on your timetable for today."
-                },
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = if (nextDayInfo != null) {
-                    "Showing your next scheduled lecture day below."
-                } else {
-                    "No lectures scheduled for upcoming days. Check Planner to add classes."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun NextScheduledClassesHeader(nextDayNum: Int, classCount: Int) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.CalendarMonth,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Next Scheduled: ${getDayName(nextDayNum)}",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        Text(
-            text = "$classCount Classes",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-// =========================================================================
-// SECTION 2 TO 7: STUDY PROGRESS, COURSE PROGRESS, NOTES, REVISION
-// =========================================================================
-
-@Composable
-fun SectionDividerTitle(title: String, subtitle: String? = null) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun TodayStudyProgressCard(
-    plannedCount: Int,
-    completedCount: Int,
-    todaySessions: List<StudySessionEntity>,
-    onToggleSession: (StudySessionEntity) -> Unit,
-    onAddSession: () -> Unit
-) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+            // Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Daily Revision Goal",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "$completedCount of $plannedCount sessions logged",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = onAddSession,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Session", style = MaterialTheme.typography.labelSmall)
-                }
+                StatusBadge(
+                    isInProgress = isInProgress,
+                    isNext = isNext,
+                    isCompleted = isCompleted,
+                    isDark = isDark,
+                    primaryViolet = primaryViolet
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            val progress = if (plannedCount > 0) completedCount.toFloat() / plannedCount.toFloat() else 0f
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            // Course Name
+            Text(
+                text = courseName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = primaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
-            if (todaySessions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                todaySessions.forEach { session ->
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Venue Row
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = secondaryText,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = venue,
+                    fontSize = 12.sp,
+                    color = secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Time Row
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.AccessTime,
+                    contentDescription = null,
+                    tint = secondaryText,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                val timeRangeStr = String.format(
+                    Locale.getDefault(),
+                    "%d:%02d – %d:%02d %s",
+                    if (startHour > 12) startHour - 12 else if (startHour == 0) 12 else startHour,
+                    startMinute,
+                    if (endHour > 12) endHour - 12 else if (endHour == 0) 12 else endHour,
+                    endMinute,
+                    if (endHour >= 12) "PM" else "AM"
+                )
+                Text(
+                    text = timeRangeStr,
+                    fontSize = 12.sp,
+                    color = secondaryText
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Assignment Row Container
+            val assignmentRowBg = if (isDark) Color(0xFF17244A) else Color(0xFFF5F3FF)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(assignmentRowBg)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = session.isCompleted,
-                            onCheckedChange = { onToggleSession(session) }
+                        Icon(
+                            imageVector = Icons.Default.Assignment,
+                            contentDescription = null,
+                            tint = if (linkedTask != null) primaryViolet else secondaryText,
+                            modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${session.courseCode}: ${session.topicTitle}",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    textDecoration = if (session.isCompleted) TextDecoration.LineThrough else null
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            if (session.targetGoal.isNotBlank()) {
-                                Text(
-                                    text = session.targetGoal,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        Text(
+                            text = if (linkedTask != null) "Assignment due" else "No assignment",
+                            fontSize = 11.sp,
+                            fontWeight = if (linkedTask != null) FontWeight.Medium else FontWeight.Normal,
+                            color = if (linkedTask != null) primaryViolet else secondaryText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (linkedTask != null) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = primaryViolet,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                 }
             }
@@ -1045,418 +797,513 @@ fun TodayStudyProgressCard(
     }
 }
 
+/**
+ * Status badge ("In Progress", "Next", "Later", or "Completed").
+ */
 @Composable
-fun CourseProgressCard(
-    course: CourseEntity,
-    masteredTopics: Int,
-    totalTopics: Int,
+private fun StatusBadge(
+    isInProgress: Boolean,
+    isNext: Boolean,
+    isCompleted: Boolean,
+    isDark: Boolean,
+    primaryViolet: Color
+) {
+    val (label, bg, textCol, hasDot, dotCol) = when {
+        isInProgress -> Quintuple(
+            "In Progress",
+            if (isDark) Color(0x337565F6) else Color(0xFFEEF0FE),
+            primaryViolet,
+            true,
+            Color(0xFF22C55E) // Green indicator dot
+        )
+        isNext -> Quintuple(
+            "Next",
+            if (isDark) Color(0x2238BDF8) else Color(0xFFE8F4FD),
+            if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
+            true,
+            Color(0xFF38BDF8)
+        )
+        isCompleted -> Quintuple(
+            "Completed",
+            if (isDark) Color(0x2264748B) else Color(0xFFF1F5F9),
+            Color(0xFF64748B),
+            false,
+            Color.Transparent
+        )
+        else -> Quintuple(
+            "Later",
+            if (isDark) Color(0x2264748B) else Color(0xFFF1F5F9),
+            if (isDark) Color(0xFFB7C3E0) else Color(0xFF64748B),
+            false,
+            Color.Transparent
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (hasDot) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(dotCol)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = textCol
+            )
+        }
+    }
+}
+
+private data class Quintuple<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
+
+enum class BadgeType {
+    PDF, DOCUMENT, CALENDAR, RESEARCH
+}
+
+/**
+ * Quick action tile in the 2x2 grid.
+ */
+@Composable
+private fun QuickActionTile(
+    title: String,
+    subtitle: String,
+    iconBadgeType: BadgeType,
+    isDark: Boolean,
+    cardBackground: Color,
+    borderColor: Color,
+    primaryText: Color,
+    secondaryText: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Badge Box
+            QuickActionIconBadge(type = iconBadgeType, isDark = isDark)
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = secondaryText,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Pastel icon container for quick action tiles matching the screenshot.
+ */
+@Composable
+private fun QuickActionIconBadge(type: BadgeType, isDark: Boolean) {
+    when (type) {
+        BadgeType.PDF -> {
+            // Reddish / Pink rounded container with "PDF" text inside
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isDark) Color(0xFF381C26) else Color(0xFFFFECEF)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(Color(0xFFEF4444)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "PDF",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        BadgeType.DOCUMENT -> {
+            // Violet rounded container with document lines
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isDark) Color(0xFF261E47) else Color(0xFFEDE9FE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFF9B8AFF) else Color(0xFF7565F6),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        BadgeType.CALENDAR -> {
+            // Mint / Green rounded container with calendar icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isDark) Color(0xFF143328) else Color(0xFFDCFCE7)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFF34D399) else Color(0xFF10B981),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        BadgeType.RESEARCH -> {
+            // Soft violet/blue rounded container with search icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isDark) Color(0xFF1F2252) else Color(0xFFE0E7FF)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = if (isDark) Color(0xFF818CF8) else Color(0xFF6366F1),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Recent Activity Card matching the screenshot.
+ */
+@Composable
+private fun RecentActivityCard(
+    title: String,
+    courseSubtitle: String,
+    timestamp: String,
+    isPdf: Boolean,
+    isDark: Boolean,
+    cardBackground: Color,
+    borderColor: Color,
+    primaryText: Color,
+    secondaryText: Color,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${course.code} • ${course.title}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "$masteredTopics / $totalTopics Mastered",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val progress = if (totalTopics > 0) masteredCount(masteredTopics, totalTopics) else 0f
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        }
-    }
-}
-
-private fun masteredCount(mastered: Int, total: Int): Float {
-    if (total <= 0) return 0f
-    return (mastered.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-}
-
-@Composable
-fun NoteReviewCard(
-    topic: TopicEntity,
-    courseCode: String,
-    onReview: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { onReview() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lightbulb,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "$courseCode: ${topic.title}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = topic.summaryNotes,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun UnreadMaterialCard(
-    material: LectureMaterialEntity,
-    course: CourseEntity?,
-    onOpen: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clickable { onOpen() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = material.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${course?.code ?: "Course"} • Page ${material.lastReadPage} of ${material.totalPages} (${material.totalPages - material.lastReadPage} pages left)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun RevisionStatusCard(
-    pendingQuizCount: Int,
-    weakCardsCount: Int,
-    totalFlashcards: Int,
-    onStartQuiz: () -> Unit,
-    onDrillWeakCards: () -> Unit
-) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+            .testTag("recent_activity_card_$title"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Psychology,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Active Recall Sprint",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                if (weakCardsCount > 0) {
-                    Surface(
-                        color = CampusRed.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "$weakCardsCount Weak Areas",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = CampusRed
-                            ),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "You have $pendingQuizCount unattempted quiz questions and $weakCardsCount cards rated Hard or Again.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(
-                    onClick = onDrillWeakCards,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Drill Weak Cards", style = MaterialTheme.typography.labelSmall)
-                }
-                FilledTonalButton(
-                    onClick = onStartQuiz,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Practice Quiz ($pendingQuizCount)", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun UpcomingAssessmentItemCard(
-    task: StudyTaskEntity,
-    onToggle: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = task.isCompleted,
-                onCheckedChange = { onToggle() }
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = task.courseCode,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    if (task.dueDate != null) {
-                        val sdf = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-                        Text(
-                            text = sdf.format(Date(task.dueDate)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun EmptyNoticeCard(message: String) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(14.dp)
-        )
-    }
-}
-
-fun getDayName(dayNum: Int): String {
-    return when (dayNum) {
-        1 -> "Monday"
-        2 -> "Tuesday"
-        3 -> "Wednesday"
-        4 -> "Thursday"
-        5 -> "Friday"
-        6 -> "Saturday"
-        else -> "Sunday"
-    }
-}
-
-@Composable
-fun PomodoroQuickCard(
-    isRunning: Boolean,
-    remainingSeconds: Int,
-    completedCount: Int,
-    selectedCourse: CourseEntity?,
-    onOpenPomodoro: () -> Unit
-) {
-    val minutes = remainingSeconds / 60
-    val seconds = remainingSeconds % 60
-    val timeFormatted = String.format("%02d:%02d", minutes, seconds)
-
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onOpenPomodoro() }
-            .testTag("home_pomodoro_card"),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isRunning) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            // Icon Badge
+            if (isPdf) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isDark) Color(0xFF381C26) else Color(0xFFFFECEF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(Color(0xFFEF4444)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "PDF",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isDark) Color(0xFF1E2850) else Color(0xFFE0E7FF)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isRunning) Icons.Default.HourglassTop else Icons.Default.SelfImprovement,
-                        contentDescription = "Pomodoro",
-                        tint = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = if (isDark) Color(0xFF818CF8) else Color(0xFF6366F1),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = courseSubtitle,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = timestamp,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = secondaryText
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = secondaryText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Study Motivation Card at the bottom of the dashboard.
+ */
+@Composable
+private fun StudyMotivationCard(
+    isDark: Boolean,
+    borderColor: Color,
+    primaryViolet: Color,
+    primaryText: Color
+) {
+    val cardBg = if (isDark) Color(0xFF111B36) else Color(0xFFF5F3FF)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .testTag("study_motivation_card"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Subtle wave background Canvas
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val w = size.width
+                val h = size.height
+                val wavePath = Path().apply {
+                    moveTo(w * 0.45f, h)
+                    cubicTo(w * 0.6f, h * 0.7f, w * 0.75f, 0f, w, 0f)
+                    lineTo(w, h)
+                    close()
+                }
+                val waveColor = if (isDark) Color(0x2217244A) else Color(0x33EDE9FE)
+                drawPath(wavePath, color = waveColor)
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Circular violet graduation cap badge
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(primaryViolet),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = "Motivation",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column {
-                    Text(
-                        text = if (isRunning) "Active Focus Session" else "Pomodoro Focus Timer",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isRunning) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                Text(
+                    text = "“Small steps every day lead to big results.”",
+                    fontSize = 13.sp,
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Medium,
+                    color = primaryText,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // 3 Understated Carousel Dots
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(primaryViolet)
                     )
-                    Text(
-                        text = if (isRunning) {
-                            "${selectedCourse?.code ?: "Course"} • $timeFormatted remaining"
-                        } else {
-                            if (selectedCourse != null) "Ready for ${selectedCourse.code} • 25m Focus Block" else "Timed focus blocks for your courses"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isRunning) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(primaryViolet.copy(alpha = 0.35f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(primaryViolet.copy(alpha = 0.35f))
                     )
                 }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.width(8.dp))
+/**
+ * Sun / Moon icon toggle button.
+ */
+@Composable
+private fun ThemeToggleIcon(isDark: Boolean, tint: Color) {
+    Canvas(modifier = Modifier.size(20.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension / 2f
 
-            FilledTonalButton(
-                onClick = onOpenPomodoro,
-                shape = RoundedCornerShape(20.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = if (isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-                ),
-                modifier = Modifier.testTag("home_start_pomodoro_button")
-            ) {
-                Text(
-                    text = if (isRunning) "View" else "Focus",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+        if (!isDark) {
+            // Sun icon: central circle + rays
+            drawCircle(
+                color = tint,
+                radius = radius * 0.42f,
+                center = center
+            )
+            val rayCount = 8
+            val innerR = radius * 0.65f
+            val outerR = radius * 0.95f
+            for (i in 0 until rayCount) {
+                val angle = (i * (360f / rayCount)) * (Math.PI / 180.0)
+                val cos = Math.cos(angle).toFloat()
+                val sin = Math.sin(angle).toFloat()
+                drawLine(
+                    color = tint,
+                    start = Offset(center.x + innerR * cos, center.y + innerR * sin),
+                    end = Offset(center.x + outerR * cos, center.y + outerR * sin),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             }
+        } else {
+            // Moon icon: crescent moon
+            val moonPath = Path().apply {
+                arcTo(
+                    rect = androidx.compose.ui.geometry.Rect(
+                        center.x - radius * 0.85f,
+                        center.y - radius * 0.85f,
+                        center.x + radius * 0.85f,
+                        center.y + radius * 0.85f
+                    ),
+                    startAngleDegrees = -90f,
+                    sweepAngleDegrees = 180f,
+                    forceMoveTo = true
+                )
+                cubicTo(
+                    center.x - radius * 0.1f, center.y + radius * 0.7f,
+                    center.x - radius * 0.1f, center.y - radius * 0.7f,
+                    center.x, center.y - radius * 0.85f
+                )
+                close()
+            }
+            drawPath(moonPath, color = tint)
+        }
+    }
+}
+
+private fun formatTimestamp(timestampMillis: Long): String {
+    val diff = System.currentTimeMillis() - timestampMillis
+    val oneDay = 24 * 60 * 60 * 1000L
+    return when {
+        diff < oneDay -> {
+            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Today, ${sdf.format(Date(timestampMillis))}"
+        }
+        diff < 2 * oneDay -> {
+            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Yesterday, ${sdf.format(Date(timestampMillis))}"
+        }
+        else -> {
+            val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+            sdf.format(Date(timestampMillis))
         }
     }
 }
