@@ -9,6 +9,7 @@ import com.example.data.model.CourseEntity
 import com.example.data.model.FlashcardEntity
 import com.example.data.model.LectureClassEntity
 import com.example.data.model.LectureMaterialEntity
+import com.example.data.model.PdfAnnotationEntity
 import com.example.data.model.QuizQuestionEntity
 import com.example.data.model.StudySessionEntity
 import com.example.data.model.StudyTaskEntity
@@ -29,9 +30,10 @@ import java.util.Calendar
         StudySessionEntity::class,
         StudyTaskEntity::class,
         FlashcardEntity::class,
-        QuizQuestionEntity::class
+        QuizQuestionEntity::class,
+        PdfAnnotationEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class LectraDatabase : RoomDatabase() {
@@ -40,6 +42,7 @@ abstract class LectraDatabase : RoomDatabase() {
     abstract fun lectureMaterialDao(): LectureMaterialDao
     abstract fun studySessionDao(): StudySessionDao
     abstract fun revisionDao(): RevisionDao
+    abstract fun pdfAnnotationDao(): PdfAnnotationDao
 
     companion object {
         @Volatile

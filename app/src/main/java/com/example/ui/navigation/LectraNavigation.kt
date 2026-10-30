@@ -36,5 +36,6 @@ enum class SubScreen {
     QUIZ_STUDY,
     POMODORO_TIMER,
     GLOBAL_SEARCH,
-    RESEARCH
+    RESEARCH,
+    PDF_VIEWER
 }

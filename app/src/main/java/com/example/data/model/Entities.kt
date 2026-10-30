@@ -145,7 +145,6 @@ data class FlashcardEntity(
     val nextReviewDate: Long = 0,
     val lastRecallGrade: String? = null // AGAIN, HARD, GOOD, EASY
 )
-
 @Entity(tableName = "quiz_questions")
 data class QuizQuestionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -161,4 +160,29 @@ data class QuizQuestionEntity(
     val hasAnswered: Boolean = false,
     val selectedOption: Int? = null,
     val isCorrect: Boolean? = null
+)
+
+@Entity(
+    tableName = "pdf_annotations",
+    foreignKeys = [
+        ForeignKey(
+            entity = LectureMaterialEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["materialId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("materialId"), Index("pageIndex")]
+)
+data class PdfAnnotationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val materialId: Long,
+    val pageIndex: Int, // 0-based page index
+    val type: String, // "HIGHLIGHT", "UNDERLINE", "NOTE", "DRAWING", "BOOKMARK"
+    val colorHex: String = "#FFEB3B",
+    val content: String = "", // text for sticky notes or bookmark label
+    val dataJson: String = "", // serialized coordinates / strokes / bounds
+    val relativeX: Float = 0f, // 0..1 relative position on page
+    val relativeY: Float = 0f, // 0..1 relative position on page
+    val createdAt: Long = System.currentTimeMillis()
 )

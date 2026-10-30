@@ -8,25 +8,38 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.LectraUiState
 import com.example.ui.LectraViewModel
 import androidx.compose.foundation.layout.Column
+import com.example.data.model.LectureClassEntity
 import com.example.ui.components.AddCourseDialog
+import com.example.ui.components.AddEditLectureClassDialog
 import com.example.ui.components.AddFlashcardDialog
 import com.example.ui.components.AddQuizDialog
 import com.example.ui.components.AddStudySessionDialog
@@ -41,6 +54,7 @@ import com.example.ui.screens.CourseListScreen
 import com.example.ui.screens.CoursesScreen
 import com.example.ui.screens.FlashcardStudyScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.PdfViewerScreen
 import com.example.ui.screens.PlannerScreen
 import com.example.ui.screens.PomodoroTimerScreen
 import com.example.ui.screens.QuizStudyScreen
@@ -136,6 +150,8 @@ fun LectraApp(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Dialog States
+    var showAddClassDialog by remember { mutableStateOf(false) }
+    var classToEdit by remember { mutableStateOf<LectureClassEntity?>(null) }
     var showAddCourseDialog by remember { mutableStateOf(false) }
     var showAddSessionDialog by remember { mutableStateOf(false) }
     var showAddTaskDialog by remember { mutableStateOf(false) }
@@ -185,7 +201,8 @@ fun LectraApp(
             uiState.currentSubScreen == SubScreen.QUIZ_STUDY ||
             uiState.currentSubScreen == SubScreen.POMODORO_TIMER ||
             uiState.currentSubScreen == SubScreen.GLOBAL_SEARCH ||
-            uiState.currentSubScreen == SubScreen.RESEARCH
+            uiState.currentSubScreen == SubScreen.RESEARCH ||
+            uiState.currentSubScreen == SubScreen.PDF_VIEWER
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -354,6 +371,32 @@ fun LectraApp(
                     )
                 }
 
+                SubScreen.PDF_VIEWER -> {
+                    val material = uiState.activeReadingMaterial
+                    if (material != null) {
+                        PdfViewerScreen(
+                            material = material,
+                            annotations = uiState.activePdfAnnotations,
+                            isDarkTheme = uiState.themeMode == com.example.ui.theme.ThemeMode.DARK,
+                            onBackClick = { viewModel.closeSubScreen() },
+                            onPageChanged = { pageNum, totalPages ->
+                                viewModel.updatePdfReadingProgress(material.id, pageNum, totalPages)
+                            },
+                            onAddAnnotation = { pageIndex, type, colorHex, content, dataJson, relX, relY ->
+                                viewModel.addPdfAnnotation(material.id, pageIndex, type, colorHex, content, dataJson, relX, relY)
+                            },
+                            onDeleteAnnotation = { annotationId ->
+                                viewModel.deletePdfAnnotation(annotationId)
+                            },
+                            onToggleBookmark = { matId, pageIndex ->
+                                viewModel.togglePdfBookmark(matId, pageIndex)
+                            }
+                        )
+                    } else {
+                        viewModel.closeSubScreen()
+                    }
+                }
+
                 SubScreen.NONE -> {
                     when (uiState.currentDestination) {
                         LectraDestination.HOME -> {
@@ -393,8 +436,13 @@ fun LectraApp(
 
                         LectraDestination.PLANNER -> {
                             PlannerScreen(
+                                classes = uiState.classes,
+                                courses = uiState.courses,
                                 sessions = uiState.sessions,
                                 tasks = uiState.tasks,
+                                onAddClassClick = { showAddClassDialog = true },
+                                onEditClass = { classToEdit = it },
+                                onDeleteClass = { viewModel.deleteLectureClass(it) },
                                 onToggleSession = { viewModel.toggleSessionCompletion(it) },
                                 onDeleteSession = { viewModel.deleteSession(it) },
                                 onToggleTask = { viewModel.toggleTaskCompletion(it) },
@@ -457,6 +505,57 @@ fun LectraApp(
         )
     }
 
+    if (showAddClassDialog || classToEdit != null) {
+        AddEditLectureClassDialog(
+            courses = uiState.courses,
+            existingClass = classToEdit,
+            defaultDayOfWeek = uiState.currentDayOfWeek,
+            onDismiss = {
+                showAddClassDialog = false
+                classToEdit = null
+            },
+            onConfirm = { courseId, code, name, topic, day, startH, startM, endH, endM, venue, colorHex ->
+                if (classToEdit == null) {
+                    viewModel.addLectureClass(
+                        courseId = courseId,
+                        courseCode = code,
+                        courseName = name,
+                        topicName = topic,
+                        dayOfWeek = day,
+                        startHour = startH,
+                        startMinute = startM,
+                        endHour = endH,
+                        endMinute = endM,
+                        venue = venue,
+                        colorHex = colorHex
+                    )
+                } else {
+                    viewModel.updateLectureClass(
+                        classToEdit!!.copy(
+                            courseId = courseId,
+                            courseCode = code,
+                            courseName = name,
+                            topicOrLectureName = topic,
+                            dayOfWeek = day,
+                            startHour = startH,
+                            startMinute = startM,
+                            endHour = endH,
+                            endMinute = endM,
+                            venue = venue,
+                            colorHex = colorHex
+                        )
+                    )
+                }
+                showAddClassDialog = false
+                classToEdit = null
+            },
+            onDelete = {
+                classToEdit?.let { viewModel.deleteLectureClass(it) }
+                classToEdit = null
+            }
+        )
+    }
+
     if (showAddSessionDialog) {
         AddStudySessionDialog(
             courses = uiState.courses,
@@ -502,5 +601,34 @@ fun LectraApp(
                 viewModel.addQuizQuestion(courseId, q, optA, optB, optC, optD, correctIdx, exp)
             }
         )
+    }
+
+    if (uiState.isImportingPdf) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
+            androidx.compose.material3.Card(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        color = Color(0xFF7565F6),
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = uiState.pdfImportProgress ?: "Importing PDF Document...",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
     }
 }

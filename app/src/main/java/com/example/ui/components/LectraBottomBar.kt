@@ -48,7 +48,8 @@ fun LectraBottomBar(
         LectraDestination.COURSES,
         LectraDestination.PLANNER,
         LectraDestination.REVISION,
-        LectraDestination.SEARCH
+        LectraDestination.SEARCH,
+        LectraDestination.SETTINGS
     )
 
     Surface(

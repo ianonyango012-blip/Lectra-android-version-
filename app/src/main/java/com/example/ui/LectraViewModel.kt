@@ -31,6 +31,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 enum class PomodoroMode(val title: String, val defaultMinutes: Int) {
@@ -89,8 +90,13 @@ data class LectraUiState(
     ),
     // AI Status
     val aiStatus: AiServiceStatus = AiServiceStatus.MISSING_API_KEY,
-    // Theme Mode (LIGHT by default)
-    val themeMode: com.example.ui.theme.ThemeMode = com.example.ui.theme.ThemeMode.LIGHT,
+    // Theme Mode (SYSTEM by default when no previous user preference exists)
+    val themeMode: com.example.ui.theme.ThemeMode = com.example.ui.theme.ThemeMode.SYSTEM,
+    // Active PDF Study Workspace
+    val activeReadingMaterial: LectureMaterialEntity? = null,
+    val activePdfAnnotations: List<com.example.data.model.PdfAnnotationEntity> = emptyList(),
+    val isImportingPdf: Boolean = false,
+    val pdfImportProgress: String? = null,
     // Feedback / Error messages
     val userNotice: String? = null
 )
@@ -105,28 +111,20 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     private val _uiState = MutableStateFlow(LectraUiState())
     val uiState: StateFlow<LectraUiState> = _uiState.asStateFlow()
     private var timerJob: Job? = null
+    private var annotationsJob: Job? = null
 
     init {
         val db = LectraDatabase.getDatabase(application, viewModelScope)
         repository = LectraRepository(db, application)
         backupManager = com.example.data.backup.BackupManager(repository, application)
 
-        val savedThemeStr = prefs.getString("app_theme_mode", com.example.ui.theme.ThemeMode.LIGHT.name)
-            ?: com.example.ui.theme.ThemeMode.LIGHT.name
+        val savedThemeStr = prefs.getString("app_theme_mode", com.example.ui.theme.ThemeMode.SYSTEM.name)
+            ?: com.example.ui.theme.ThemeMode.SYSTEM.name
         val initialTheme = runCatching { com.example.ui.theme.ThemeMode.valueOf(savedThemeStr) }
-            .getOrDefault(com.example.ui.theme.ThemeMode.LIGHT)
+            .getOrDefault(com.example.ui.theme.ThemeMode.SYSTEM)
         _uiState.value = _uiState.value.copy(themeMode = initialTheme)
 
         updateDeviceTime()
-
-        // Periodic ticker to keep class statuses up-to-date in real time
-        viewModelScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                delay(30000) // check every 30 seconds
-                updateDeviceTime()
-            }
-        }
-
 
         // Observe local database flows
         viewModelScope.launch {
@@ -204,6 +202,16 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun closeSubScreen(): Boolean {
+        if (_uiState.value.currentSubScreen == SubScreen.PDF_VIEWER) {
+            annotationsJob?.cancel()
+            val returnSubScreen = if (_uiState.value.selectedCourseId != null) SubScreen.COURSE_DETAIL else SubScreen.NONE
+            _uiState.value = _uiState.value.copy(
+                currentSubScreen = returnSubScreen,
+                activeReadingMaterial = null,
+                activePdfAnnotations = emptyList()
+            )
+            return true
+        }
         if (_uiState.value.currentSubScreen != SubScreen.NONE) {
             _uiState.value = _uiState.value.copy(
                 currentSubScreen = SubScreen.NONE,
@@ -386,6 +394,13 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun updateLectureClass(lectureClass: LectureClassEntity) {
+        viewModelScope.launch {
+            repository.updateLectureClass(lectureClass)
+            showNotice("Lecture class updated.")
+        }
+    }
+
     fun deleteLectureClass(lectureClass: LectureClassEntity) {
         viewModelScope.launch {
             repository.deleteLectureClass(lectureClass)
@@ -393,62 +408,145 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // PDF SAF Import
+    // PDF SAF Import with Validation & Duplicate Detection
     fun handlePdfImport(uri: Uri, courseId: Long, unitId: Long? = null, topicId: Long? = null) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isImportingPdf = true,
+                pdfImportProgress = "Validating document..."
+            )
+
             try {
                 val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                 getApplication<Application>().contentResolver.takePersistableUriPermission(uri, takeFlags)
             } catch (_: Exception) {}
 
             try {
-                val (fileName, fileSize) = repository.resolveDocumentDetails(uri)
-                val savedPath = repository.saveFileToInternalStorage(uri)
-                repository.insertMaterial(
-                    LectureMaterialEntity(
-                        courseId = courseId,
-                        unitId = unitId,
-                        topicId = topicId,
-                        title = fileName,
-                        fileUriString = savedPath,
-                        fileSizeBytes = fileSize,
-                        mimeType = "application/pdf",
-                        totalPages = 20,
-                        aiSummary = "Imported lecture slide deck. Saved locally for reliable offline study."
-                    )
-                )
-                showNotice("Imported '$fileName' successfully.")
+                val app = getApplication<Application>()
+                val (docName, docSize) = com.example.data.storage.PdfStorageManager.resolveMetadata(app, uri)
+
+                // Duplicate Check: check if already exists in this course
+                val isDuplicate = _uiState.value.materials.any {
+                    it.courseId == courseId && it.title.equals(docName, ignoreCase = true) &&
+                            (it.fileSizeBytes == docSize || docSize == 0L)
+                }
+                if (isDuplicate) {
+                    _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
+                    showNotice("'$docName' is already imported in this course.")
+                    return@launch
+                }
+
+                _uiState.value = _uiState.value.copy(pdfImportProgress = "Saving locally and rendering pages...")
+                val outcome = withContext(Dispatchers.IO) {
+                    com.example.data.storage.PdfStorageManager.importPdf(app, uri)
+                }
+
+                when (outcome) {
+                    is com.example.data.storage.PdfImportOutcome.Success -> {
+                        val materialId = repository.insertMaterial(
+                            LectureMaterialEntity(
+                                courseId = courseId,
+                                unitId = unitId,
+                                topicId = topicId,
+                                title = outcome.displayName,
+                                fileUriString = outcome.localPath,
+                                fileSizeBytes = outcome.fileSizeBytes,
+                                mimeType = "application/pdf",
+                                lastReadPage = 1,
+                                totalPages = outcome.pageCount,
+                                aiSummary = "Offline verified lecture material. Page count: ${outcome.pageCount}."
+                            )
+                        )
+                        _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
+                        showNotice("Imported '${outcome.displayName}' (${outcome.pageCount} pages).")
+                    }
+                    is com.example.data.storage.PdfImportOutcome.Error -> {
+                        _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
+                        showNotice(outcome.message)
+                    }
+                }
             } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
                 showNotice("Failed to import PDF: ${e.localizedMessage}")
             }
         }
     }
 
+    fun openPdfViewer(material: LectureMaterialEntity) {
+        _uiState.value = _uiState.value.copy(
+            activeReadingMaterial = material,
+            currentSubScreen = SubScreen.PDF_VIEWER
+        )
+        annotationsJob?.cancel()
+        annotationsJob = viewModelScope.launch {
+            repository.getAnnotationsForMaterial(material.id).collect { annotations ->
+                _uiState.value = _uiState.value.copy(activePdfAnnotations = annotations)
+            }
+        }
+    }
+
     fun openPdfMaterial(material: LectureMaterialEntity, context: android.content.Context) {
-        try {
-            val uri = if (material.fileUriString.startsWith("content://") || material.fileUriString.startsWith("lectra://")) {
-                Uri.parse(material.fileUriString)
+        openPdfViewer(material)
+    }
+
+    fun addPdfAnnotation(
+        materialId: Long,
+        pageIndex: Int,
+        type: String,
+        colorHex: String,
+        content: String = "",
+        dataJson: String = "",
+        relX: Float = 0f,
+        relY: Float = 0f
+    ) {
+        viewModelScope.launch {
+            repository.insertAnnotation(
+                com.example.data.model.PdfAnnotationEntity(
+                    materialId = materialId,
+                    pageIndex = pageIndex,
+                    type = type,
+                    colorHex = colorHex,
+                    content = content,
+                    dataJson = dataJson,
+                    relativeX = relX,
+                    relativeY = relY
+                )
+            )
+        }
+    }
+
+    fun deletePdfAnnotation(annotationId: Long) {
+        viewModelScope.launch {
+            repository.deleteAnnotationById(annotationId)
+        }
+    }
+
+    fun togglePdfBookmark(materialId: Long, pageIndex: Int) {
+        viewModelScope.launch {
+            val existing = _uiState.value.activePdfAnnotations.find {
+                it.materialId == materialId && it.pageIndex == pageIndex && it.type == "BOOKMARK"
+            }
+            if (existing != null) {
+                repository.deleteAnnotationById(existing.id)
+                showNotice("Bookmark removed for page ${pageIndex + 1}.")
             } else {
-                val file = java.io.File(material.fileUriString)
-                if (file.exists()) {
-                    androidx.core.content.FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        file
+                repository.insertAnnotation(
+                    com.example.data.model.PdfAnnotationEntity(
+                        materialId = materialId,
+                        pageIndex = pageIndex,
+                        type = "BOOKMARK",
+                        colorHex = "#F59E0B",
+                        content = "Page ${pageIndex + 1} Bookmark"
                     )
-                } else {
-                    Uri.parse(material.fileUriString)
-                }
+                )
+                showNotice("Page ${pageIndex + 1} bookmarked.")
             }
-            
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/pdf")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            showNotice("Could not open PDF viewer: ${e.localizedMessage}")
+        }
+    }
+
+    fun updatePdfReadingProgress(materialId: Long, pageNumber: Int, totalPages: Int) {
+        viewModelScope.launch {
+            repository.updateReadingProgress(materialId, pageNumber, totalPages)
         }
     }
 
@@ -1071,6 +1169,12 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun showNotice(message: String) {
         _uiState.value = _uiState.value.copy(userNotice = message)
+    }
+
+    public override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
+        annotationsJob?.cancel()
     }
 }
 

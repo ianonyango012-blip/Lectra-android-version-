@@ -10,6 +10,7 @@ import com.example.data.model.CourseEntity
 import com.example.data.model.FlashcardEntity
 import com.example.data.model.LectureClassEntity
 import com.example.data.model.LectureMaterialEntity
+import com.example.data.model.PdfAnnotationEntity
 import com.example.data.model.QuizQuestionEntity
 import com.example.data.model.StudySessionEntity
 import com.example.data.model.StudyTaskEntity
@@ -232,4 +233,40 @@ interface RevisionDao {
 
     @Query("UPDATE quiz_questions SET hasAnswered = 0, selectedOption = NULL, isCorrect = NULL")
     suspend fun resetAllQuizProgress()
+}
+
+@Dao
+interface PdfAnnotationDao {
+    @Query("SELECT * FROM pdf_annotations WHERE materialId = :materialId ORDER BY pageIndex ASC, createdAt ASC")
+    fun getAnnotationsForMaterial(materialId: Long): Flow<List<PdfAnnotationEntity>>
+
+    @Query("SELECT * FROM pdf_annotations WHERE materialId = :materialId ORDER BY pageIndex ASC, createdAt ASC")
+    suspend fun getAnnotationsForMaterialList(materialId: Long): List<PdfAnnotationEntity>
+
+    @Query("SELECT * FROM pdf_annotations WHERE materialId = :materialId AND pageIndex = :pageIndex ORDER BY createdAt ASC")
+    fun getAnnotationsForPage(materialId: Long, pageIndex: Int): Flow<List<PdfAnnotationEntity>>
+
+    @Query("SELECT * FROM pdf_annotations WHERE materialId = :materialId AND type = 'BOOKMARK' ORDER BY pageIndex ASC")
+    fun getBookmarksForMaterial(materialId: Long): Flow<List<PdfAnnotationEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAnnotation(annotation: PdfAnnotationEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAnnotations(annotations: List<PdfAnnotationEntity>): List<Long>
+
+    @Update
+    suspend fun updateAnnotation(annotation: PdfAnnotationEntity)
+
+    @Delete
+    suspend fun deleteAnnotation(annotation: PdfAnnotationEntity)
+
+    @Query("DELETE FROM pdf_annotations WHERE id = :id")
+    suspend fun deleteAnnotationById(id: Long)
+
+    @Query("DELETE FROM pdf_annotations WHERE materialId = :materialId AND pageIndex = :pageIndex AND type = 'BOOKMARK'")
+    suspend fun removeBookmark(materialId: Long, pageIndex: Int)
+
+    @Query("DELETE FROM pdf_annotations WHERE materialId = :materialId")
+    suspend fun deleteAnnotationsForMaterial(materialId: Long)
 }

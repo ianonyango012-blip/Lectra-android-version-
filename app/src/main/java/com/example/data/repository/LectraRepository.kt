@@ -8,6 +8,7 @@ import com.example.data.model.CourseEntity
 import com.example.data.model.FlashcardEntity
 import com.example.data.model.LectureClassEntity
 import com.example.data.model.LectureMaterialEntity
+import com.example.data.model.PdfAnnotationEntity
 import com.example.data.model.QuizQuestionEntity
 import com.example.data.model.StudySessionEntity
 import com.example.data.model.StudyTaskEntity
@@ -24,6 +25,7 @@ class LectraRepository(
     private val materialDao = database.lectureMaterialDao()
     private val sessionDao = database.studySessionDao()
     private val revisionDao = database.revisionDao()
+    private val annotationDao = database.pdfAnnotationDao()
 
     // Courses & Topics
     fun getAllCourses(): Flow<List<CourseEntity>> = courseDao.getAllCourses()
@@ -53,9 +55,54 @@ class LectraRepository(
     // Materials
     fun getAllMaterials(): Flow<List<LectureMaterialEntity>> = materialDao.getAllMaterials()
     fun getMaterialsForCourse(courseId: Long): Flow<List<LectureMaterialEntity>> = materialDao.getMaterialsForCourse(courseId)
+    fun getMaterialById(id: Long): Flow<LectureMaterialEntity?> = materialDao.getMaterialById(id)
     suspend fun insertMaterial(material: LectureMaterialEntity): Long = materialDao.insertMaterial(material)
     suspend fun updateMaterial(material: LectureMaterialEntity) = materialDao.updateMaterial(material)
-    suspend fun deleteMaterial(material: LectureMaterialEntity) = materialDao.deleteMaterial(material)
+    suspend fun deleteMaterial(material: LectureMaterialEntity) {
+        materialDao.deleteMaterial(material)
+        // Also remove local file if stored in internal lectures directory
+        try {
+            if (material.fileUriString.startsWith("/") && material.fileUriString.contains("/lectures/")) {
+                java.io.File(material.fileUriString).delete()
+            }
+        } catch (_: Exception) {}
+    }
+
+    // PDF Annotations & Bookmarks
+    fun getAnnotationsForMaterial(materialId: Long): Flow<List<PdfAnnotationEntity>> =
+        annotationDao.getAnnotationsForMaterial(materialId)
+
+    suspend fun getAnnotationsForMaterialList(materialId: Long): List<PdfAnnotationEntity> =
+        annotationDao.getAnnotationsForMaterialList(materialId)
+
+    fun getBookmarksForMaterial(materialId: Long): Flow<List<PdfAnnotationEntity>> =
+        annotationDao.getBookmarksForMaterial(materialId)
+
+    suspend fun insertAnnotation(annotation: PdfAnnotationEntity): Long =
+        annotationDao.insertAnnotation(annotation)
+
+    suspend fun updateAnnotation(annotation: PdfAnnotationEntity) =
+        annotationDao.updateAnnotation(annotation)
+
+    suspend fun deleteAnnotation(annotation: PdfAnnotationEntity) =
+        annotationDao.deleteAnnotation(annotation)
+
+    suspend fun deleteAnnotationById(id: Long) =
+        annotationDao.deleteAnnotationById(id)
+
+    suspend fun removeBookmark(materialId: Long, pageIndex: Int) =
+        annotationDao.removeBookmark(materialId, pageIndex)
+
+    suspend fun updateReadingProgress(materialId: Long, lastReadPage: Int, totalPages: Int? = null) {
+        val current = materialDao.getAllMaterialsList().firstOrNull { it.id == materialId }
+        if (current != null) {
+            val updated = current.copy(
+                lastReadPage = lastReadPage,
+                totalPages = totalPages ?: current.totalPages
+            )
+            materialDao.updateMaterial(updated)
+        }
+    }
 
     // Study Sessions & Tasks
     fun getAllSessions(): Flow<List<StudySessionEntity>> = sessionDao.getAllSessions()

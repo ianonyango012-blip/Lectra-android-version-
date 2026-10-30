@@ -45,7 +45,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +76,7 @@ import com.example.ui.components.LectraBrandHeader
 import com.example.ui.navigation.LectraDestination
 import com.example.ui.theme.ThemeMode
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -127,26 +132,66 @@ fun HomeScreen(
         "$greetingPrefix ☀️"
     }
 
-    val currentDateStr = remember {
-        val sdf = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
-        sdf.format(Date())
+    // Periodic ticker to ensure classes that end disappear automatically in real time without screen re-entry
+    var refreshTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(15000)
+            refreshTick++
+        }
     }
 
-    val currentTimeInMinutes = uiState.currentHour * 60 + uiState.currentMinute
-    val todayClasses = remember(uiState.classes, uiState.currentDayOfWeek) {
+    val cal = remember(uiState.currentTimeMillis, refreshTick) { Calendar.getInstance() }
+    val todayCalDay = cal.get(Calendar.DAY_OF_WEEK)
+    val todayDayOfWeek = if (todayCalDay == Calendar.SUNDAY) 7 else todayCalDay - 1
+    val tomorrowDayOfWeek = if (todayDayOfWeek == 7) 1 else todayDayOfWeek + 1
+
+    val currentHour = cal.get(Calendar.HOUR_OF_DAY)
+    val currentMinute = cal.get(Calendar.MINUTE)
+    val currentTimeInMinutes = currentHour * 60 + currentMinute
+
+    val currentDateStr = remember(todayDayOfWeek, refreshTick) {
+        val sdf = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+        sdf.format(cal.time)
+    }
+
+    val tomorrowDateStr = remember(todayDayOfWeek, refreshTick) {
+        val tomorrowCal = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }
+        val sdf = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault())
+        sdf.format(tomorrowCal.time)
+    }
+
+    // 1. All classes scheduled for today from Class Timetable
+    val allTodayClasses = remember(uiState.classes, todayDayOfWeek) {
         uiState.classes
-            .filter { it.dayOfWeek == uiState.currentDayOfWeek }
+            .filter { it.dayOfWeek == todayDayOfWeek }
             .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
             .sortedBy { it.startHour * 60 + it.startMinute }
     }
 
-    // Determine upcoming/in-progress classes
-    val activeAndUpcomingClasses = remember(todayClasses, currentTimeInMinutes) {
-        todayClasses.filter {
+    // 2. Active & Upcoming classes for today (completed classes where end <= current are removed!)
+    val todayActiveAndUpcomingClasses = remember(allTodayClasses, currentTimeInMinutes) {
+        allTodayClasses.filter {
             val endInMinutes = it.endHour * 60 + it.endMinute
             endInMinutes >= currentTimeInMinutes
         }
     }
+
+    // 3. Tomorrow's scheduled classes from Class Timetable
+    val tomorrowClasses = remember(uiState.classes, tomorrowDayOfWeek) {
+        uiState.classes
+            .filter { it.dayOfWeek == tomorrowDayOfWeek }
+            .distinctBy { listOf(it.courseId, it.dayOfWeek, it.startHour, it.startMinute, it.endHour, it.topicOrLectureName) }
+            .sortedBy { it.startHour * 60 + it.startMinute }
+    }
+
+    // 4. Decide display list:
+    // If today has active or upcoming classes: display them under "Today".
+    // If all today's classes have ended (or no classes scheduled today): automatically display tomorrow's classes!
+    val isShowingTomorrow = todayActiveAndUpcomingClasses.isEmpty() && tomorrowClasses.isNotEmpty()
+    val displayClasses = if (!isShowingTomorrow) todayActiveAndUpcomingClasses else tomorrowClasses
+    val sectionTitle = if (isShowingTomorrow) "Tomorrow" else "Today"
+    val sectionDateStr = if (isShowingTomorrow) tomorrowDateStr else currentDateStr
 
     // Real recent activity: user imported materials and topics
     val recentMaterials = uiState.materials.take(3)
@@ -283,7 +328,7 @@ fun HomeScreen(
         // ==========================================
         item(key = "today_timetable_section") {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Section Title Row: "Today" on left, Date on right
+                // Section Title Row: "Today" / "Tomorrow" on left, Date on right
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -292,20 +337,21 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Today",
+                        text = sectionTitle,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = primaryText
+                        color = primaryText,
+                        modifier = Modifier.testTag("today_section_title")
                     )
                     Text(
-                        text = currentDateStr,
+                        text = sectionDateStr,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = secondaryText
                     )
                 }
 
-                if (todayClasses.isEmpty()) {
+                if (displayClasses.isEmpty()) {
                     // Empty timetable state
                     Card(
                         modifier = Modifier
@@ -329,7 +375,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No classes scheduled for today",
+                                text = if (isShowingTomorrow) "No classes scheduled for tomorrow" else "No classes scheduled for today",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = secondaryText
@@ -359,12 +405,16 @@ fun HomeScreen(
                             .testTag("today_classes_horizontal_row"),
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(todayClasses, key = { it.id }) { lectureClass ->
+                        items(displayClasses, key = { it.id }) { lectureClass ->
                             val classStartMinutes = lectureClass.startHour * 60 + lectureClass.startMinute
                             val classEndMinutes = lectureClass.endHour * 60 + lectureClass.endMinute
-                            val isInProgress = currentTimeInMinutes in classStartMinutes..classEndMinutes
-                            val isCompleted = currentTimeInMinutes > classEndMinutes
-                            val isNext = !isInProgress && !isCompleted && activeAndUpcomingClasses.firstOrNull()?.id == lectureClass.id
+                            val isInProgress = !isShowingTomorrow && currentTimeInMinutes in classStartMinutes..classEndMinutes
+                            val isCompleted = false
+                            val isNext = if (isShowingTomorrow) {
+                                displayClasses.firstOrNull()?.id == lectureClass.id
+                            } else {
+                                !isInProgress && todayActiveAndUpcomingClasses.firstOrNull()?.id == lectureClass.id
+                            }
 
                             val course = uiState.courses.find { it.id == lectureClass.courseId }
                             val courseName = course?.title?.takeIf { it.isNotBlank() }
@@ -385,6 +435,7 @@ fun HomeScreen(
                                 isInProgress = isInProgress,
                                 isNext = isNext,
                                 isCompleted = isCompleted,
+                                isTomorrow = isShowingTomorrow,
                                 linkedTask = linkedTask,
                                 isDark = isDark,
                                 cardBackground = cardBackground,
@@ -642,6 +693,7 @@ private fun ClassCardItem(
     isInProgress: Boolean,
     isNext: Boolean,
     isCompleted: Boolean,
+    isTomorrow: Boolean = false,
     linkedTask: StudyTaskEntity?,
     isDark: Boolean,
     cardBackground: Color,
@@ -682,6 +734,7 @@ private fun ClassCardItem(
                     isInProgress = isInProgress,
                     isNext = isNext,
                     isCompleted = isCompleted,
+                    isTomorrow = isTomorrow,
                     isDark = isDark,
                     primaryViolet = primaryViolet
                 )
@@ -805,6 +858,7 @@ private fun StatusBadge(
     isInProgress: Boolean,
     isNext: Boolean,
     isCompleted: Boolean,
+    isTomorrow: Boolean = false,
     isDark: Boolean,
     primaryViolet: Color
 ) {
@@ -815,6 +869,20 @@ private fun StatusBadge(
             primaryViolet,
             true,
             Color(0xFF22C55E) // Green indicator dot
+        )
+        isTomorrow && isNext -> Quintuple(
+            "Tomorrow",
+            if (isDark) Color(0x337565F6) else Color(0xFFEEF0FE),
+            primaryViolet,
+            true,
+            primaryViolet
+        )
+        isTomorrow -> Quintuple(
+            "Tomorrow",
+            if (isDark) Color(0x2264748B) else Color(0xFFF1F5F9),
+            if (isDark) Color(0xFFB7C3E0) else Color(0xFF64748B),
+            false,
+            Color.Transparent
         )
         isNext -> Quintuple(
             "Next",

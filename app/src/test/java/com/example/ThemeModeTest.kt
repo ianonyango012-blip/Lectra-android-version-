@@ -33,29 +33,29 @@ class ThemeModeTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `default theme mode is LIGHT and persists changes`() = runTest {
+    fun `default theme mode is SYSTEM when no preference exists and persists changes`() = runTest {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val prefs = app.getSharedPreferences("lectra_prefs", Context.MODE_PRIVATE)
         prefs.edit().remove("app_theme_mode").apply()
 
         val viewModel = LectraViewModel(app)
-        // Verify default on clean startup is LIGHT
-        assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
+        // Verify default on clean startup without saved preference is SYSTEM as required
+        assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
 
         // Change to DARK
         viewModel.setThemeMode(ThemeMode.DARK)
         assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
         assertEquals(ThemeMode.DARK.name, prefs.getString("app_theme_mode", null))
 
-        // Change to SYSTEM
-        viewModel.setThemeMode(ThemeMode.SYSTEM)
-        assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
-        assertEquals(ThemeMode.SYSTEM.name, prefs.getString("app_theme_mode", null))
-
-        // Reset to LIGHT
+        // Change to LIGHT
         viewModel.setThemeMode(ThemeMode.LIGHT)
         assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
         assertEquals(ThemeMode.LIGHT.name, prefs.getString("app_theme_mode", null))
+
+        // Change back to SYSTEM
+        viewModel.setThemeMode(ThemeMode.SYSTEM)
+        assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
+        assertEquals(ThemeMode.SYSTEM.name, prefs.getString("app_theme_mode", null))
     }
 
     @Test
@@ -76,8 +76,12 @@ class ThemeModeTest {
             }
         }
 
-        // Verify appearance card and all 3 options exist
-        composeTestRule.onNodeWithTag("settings_appearance_card").assertIsDisplayed()
+        // Open Appearance category
+        composeTestRule.onNodeWithTag("category_appearance_card").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("category_appearance_card").performClick()
+
+        // Verify appearance screen and all 3 options exist
+        composeTestRule.onNodeWithTag("theme_selection_card").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_option_light").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_option_dark").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_option_system").assertIsDisplayed()

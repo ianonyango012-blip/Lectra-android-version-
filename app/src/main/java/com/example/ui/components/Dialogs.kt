@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Add
 import com.example.data.model.CourseEntity
+import com.example.data.model.LectureClassEntity
 
 @Composable
 fun AddCourseDialog(
@@ -847,6 +848,279 @@ fun AddQuizDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditLectureClassDialog(
+    courses: List<CourseEntity>,
+    existingClass: LectureClassEntity? = null,
+    defaultDayOfWeek: Int = 1,
+    onDismiss: () -> Unit,
+    onConfirm: (
+        courseId: Long,
+        courseCode: String,
+        courseName: String,
+        topic: String,
+        dayOfWeek: Int,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        venue: String,
+        colorHex: String
+    ) -> Unit,
+    onDelete: (() -> Unit)? = null
+) {
+    if (courses.isEmpty()) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("No Courses Found") },
+            text = { Text("Please add at least one university course before adding classes to your timetable.") },
+            confirmButton = { Button(onClick = onDismiss) { Text("OK") } }
+        )
+        return
+    }
+
+    var selectedCourse by remember {
+        mutableStateOf(
+            if (existingClass != null) {
+                courses.find { it.id == existingClass.courseId } ?: courses.first()
+            } else {
+                courses.first()
+            }
+        )
+    }
+    var courseDropdownExpanded by remember { mutableStateOf(false) }
+    var topic by remember { mutableStateOf(existingClass?.topicOrLectureName ?: "") }
+    var venue by remember { mutableStateOf(existingClass?.venue ?: "") }
+    var selectedDay by remember { mutableIntStateOf(existingClass?.dayOfWeek ?: defaultDayOfWeek) }
+
+    var startHourStr by remember { mutableStateOf((existingClass?.startHour ?: 9).toString()) }
+    var startMinuteStr by remember { mutableStateOf((existingClass?.startMinute ?: 0).toString()) }
+    var endHourStr by remember { mutableStateOf((existingClass?.endHour ?: 11).toString()) }
+    var endMinuteStr by remember { mutableStateOf((existingClass?.endMinute ?: 0).toString()) }
+
+    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (existingClass != null) "Edit University Class" else "Add Class to Timetable",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Course Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = courseDropdownExpanded,
+                    onExpandedChange = { courseDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = "${selectedCourse.code}: ${selectedCourse.title}",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Course Name") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = courseDropdownExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .testTag("class_course_dropdown")
+                    )
+                    ExposedDropdownMenu(
+                        expanded = courseDropdownExpanded,
+                        onDismissRequest = { courseDropdownExpanded = false }
+                    ) {
+                        courses.forEach { course ->
+                            DropdownMenuItem(
+                                text = { Text("${course.code} - ${course.title}") },
+                                onClick = {
+                                    selectedCourse = course
+                                    courseDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Topic / Lecture Title
+                OutlinedTextField(
+                    value = topic,
+                    onValueChange = { topic = it },
+                    label = { Text("Topic or Lecture Name (e.g. Raft Consensus)") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("class_topic_input")
+                )
+
+                // Venue
+                OutlinedTextField(
+                    value = venue,
+                    onValueChange = { venue = it },
+                    label = { Text("Venue (e.g. Turing Lecture Hall 104)") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("class_venue_input")
+                )
+
+                // Day of Week
+                Text("Day of the Week", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    days.forEachIndexed { index, dayName ->
+                        val dayNum = index + 1
+                        val isSelected = selectedDay == dayNum
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { selectedDay = dayNum }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = dayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                // Time Pickers (Start & End)
+                Text("Schedule Timing", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                
+                var startHourStr by remember { mutableStateOf((existingClass?.startHour ?: 9).toString()) }
+                var startMinuteStr by remember { mutableStateOf((existingClass?.startMinute ?: 0).toString()) }
+                var endHourStr by remember { mutableStateOf((existingClass?.endHour ?: 11).toString()) }
+                var endMinuteStr by remember { mutableStateOf((existingClass?.endMinute ?: 0).toString()) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Start Time
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Start Time", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OutlinedTextField(
+                                value = startHourStr,
+                                onValueChange = { startHourStr = it.take(2) },
+                                label = { Text("Hr") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("class_start_hour_input")
+                            )
+                            OutlinedTextField(
+                                value = startMinuteStr,
+                                onValueChange = { startMinuteStr = it.take(2) },
+                                label = { Text("Min") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("class_start_minute_input")
+                            )
+                        }
+                    }
+
+                    // End Time
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("End Time", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OutlinedTextField(
+                                value = endHourStr,
+                                onValueChange = { endHourStr = it.take(2) },
+                                label = { Text("Hr") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("class_end_hour_input")
+                            )
+                            OutlinedTextField(
+                                value = endMinuteStr,
+                                onValueChange = { endMinuteStr = it.take(2) },
+                                label = { Text("Min") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("class_end_minute_input")
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalTopic = topic.ifBlank { selectedCourse.title }
+                    
+                    // Parse times and validate
+                    val sH = startHourStr.toIntOrNull()?.coerceIn(0, 23) ?: 0
+                    val sM = startMinuteStr.toIntOrNull()?.coerceIn(0, 59) ?: 0
+                    val eH = endHourStr.toIntOrNull()?.coerceIn(0, 23) ?: 0
+                    val eM = endMinuteStr.toIntOrNull()?.coerceIn(0, 59) ?: 0
+                    
+                    val startTime = sH * 60 + sM
+                    val endTime = eH * 60 + eM
+                    
+                    if (endTime > startTime) {
+                        onConfirm(
+                            selectedCourse.id,
+                            selectedCourse.code,
+                            selectedCourse.title,
+                            finalTopic,
+                            selectedDay,
+                            sH,
+                            sM,
+                            eH,
+                            eM,
+                            venue.trim(),
+                            selectedCourse.colorHex
+                        )
+                        onDismiss()
+                    }
+                },
+                modifier = Modifier.testTag("save_class_button")
+            ) {
+                Text(if (existingClass != null) "Update Class" else "Save Class")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (existingClass != null && onDelete != null) {
+                    TextButton(
+                        onClick = {
+                            onDelete()
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.testTag("delete_class_button")
+                    ) {
+                        Text("Delete")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
         }
     )
 }
