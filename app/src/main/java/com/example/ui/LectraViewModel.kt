@@ -126,6 +126,10 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
 
         updateDeviceTime()
 
+        // Initialize local notification channels and verify scheduled alarms
+        com.example.notification.LectraNotificationHelper.createNotificationChannels(application)
+        com.example.notification.LectraNotificationScheduler.rescheduleAll(application)
+
         // Observe local database flows
         viewModelScope.launch {
             combine(
@@ -375,21 +379,22 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         colorHex: String
     ) {
         viewModelScope.launch {
-            repository.insertLectureClass(
-                LectureClassEntity(
-                    courseId = courseId,
-                    courseCode = courseCode,
-                    courseName = courseName,
-                    topicOrLectureName = topicName.trim(),
-                    dayOfWeek = dayOfWeek,
-                    startHour = startHour,
-                    startMinute = startMinute,
-                    endHour = endHour,
-                    endMinute = endMinute,
-                    venue = venue.trim(),
-                    colorHex = colorHex
-                )
+            val entity = LectureClassEntity(
+                courseId = courseId,
+                courseCode = courseCode,
+                courseName = courseName,
+                topicOrLectureName = topicName.trim(),
+                dayOfWeek = dayOfWeek,
+                startHour = startHour,
+                startMinute = startMinute,
+                endHour = endHour,
+                endMinute = endMinute,
+                venue = venue.trim(),
+                colorHex = colorHex
             )
+            val newId = repository.insertLectureClass(entity)
+            val classWithId = entity.copy(id = newId)
+            com.example.notification.LectraNotificationScheduler.scheduleClassReminder(getApplication(), classWithId)
             showNotice("Lecture class added to timetable.")
         }
     }
@@ -397,6 +402,7 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     fun updateLectureClass(lectureClass: LectureClassEntity) {
         viewModelScope.launch {
             repository.updateLectureClass(lectureClass)
+            com.example.notification.LectraNotificationScheduler.scheduleClassReminder(getApplication(), lectureClass)
             showNotice("Lecture class updated.")
         }
     }
@@ -404,11 +410,12 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     fun deleteLectureClass(lectureClass: LectureClassEntity) {
         viewModelScope.launch {
             repository.deleteLectureClass(lectureClass)
+            com.example.notification.LectraNotificationScheduler.cancelClassReminder(getApplication(), lectureClass.id)
             showNotice("Lecture class removed.")
         }
     }
 
-    // PDF SAF Import with Validation & Duplicate Detection
+    // Multi-format Document Import with Validation & Duplicate Detection
     fun handlePdfImport(uri: Uri, courseId: Long, unitId: Long? = null, topicId: Long? = null) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -423,7 +430,7 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
 
             try {
                 val app = getApplication<Application>()
-                val (docName, docSize) = com.example.data.storage.PdfStorageManager.resolveMetadata(app, uri)
+                val (docName, docSize) = com.example.data.document.DocumentStorageManager.resolveMetadata(app, uri)
 
                 // Duplicate Check: check if already exists in this course
                 val isDuplicate = _uiState.value.materials.any {
@@ -436,13 +443,13 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
-                _uiState.value = _uiState.value.copy(pdfImportProgress = "Saving locally and rendering pages...")
+                _uiState.value = _uiState.value.copy(pdfImportProgress = "Verifying document structure & saving locally...")
                 val outcome = withContext(Dispatchers.IO) {
-                    com.example.data.storage.PdfStorageManager.importPdf(app, uri)
+                    com.example.data.document.DocumentStorageManager.importDocument(app, uri)
                 }
 
                 when (outcome) {
-                    is com.example.data.storage.PdfImportOutcome.Success -> {
+                    is com.example.data.document.DocumentImportOutcome.Success -> {
                         val materialId = repository.insertMaterial(
                             LectureMaterialEntity(
                                 courseId = courseId,
@@ -451,23 +458,23 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
                                 title = outcome.displayName,
                                 fileUriString = outcome.localPath,
                                 fileSizeBytes = outcome.fileSizeBytes,
-                                mimeType = "application/pdf",
+                                mimeType = outcome.documentType.primaryMimeType,
                                 lastReadPage = 1,
-                                totalPages = outcome.pageCount,
-                                aiSummary = "Offline verified lecture material. Page count: ${outcome.pageCount}."
+                                totalPages = outcome.pageOrUnitCount,
+                                aiSummary = "Offline verified ${outcome.documentType.displayName}. Total: ${outcome.pageOrUnitCount}."
                             )
                         )
                         _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
-                        showNotice("Imported '${outcome.displayName}' (${outcome.pageCount} pages).")
+                        showNotice("Imported '${outcome.displayName}' (${outcome.documentType.filterCategory}).")
                     }
-                    is com.example.data.storage.PdfImportOutcome.Error -> {
+                    is com.example.data.document.DocumentImportOutcome.Error -> {
                         _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
                         showNotice(outcome.message)
                     }
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isImportingPdf = false, pdfImportProgress = null)
-                showNotice("Failed to import PDF: ${e.localizedMessage}")
+                showNotice("Failed to import document: ${e.localizedMessage}")
             }
         }
     }
@@ -475,7 +482,7 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
     fun openPdfViewer(material: LectureMaterialEntity) {
         _uiState.value = _uiState.value.copy(
             activeReadingMaterial = material,
-            currentSubScreen = SubScreen.PDF_VIEWER
+            currentSubScreen = SubScreen.DOCUMENT_VIEWER
         )
         annotationsJob?.cancel()
         annotationsJob = viewModelScope.launch {
@@ -626,30 +633,50 @@ class LectraViewModel(application: Application) : AndroidViewModel(application) 
         priority: String = "HIGH"
     ) {
         viewModelScope.launch {
-            repository.insertTask(
-                StudyTaskEntity(
-                    courseId = courseId,
-                    courseCode = courseCode,
-                    lectureClassId = lectureClassId,
-                    topicTitle = topicTitle.trim(),
-                    title = title.trim(),
-                    dueDate = dueDate,
-                    priority = priority
-                )
+            val entity = StudyTaskEntity(
+                courseId = courseId,
+                courseCode = courseCode,
+                lectureClassId = lectureClassId,
+                topicTitle = topicTitle.trim(),
+                title = title.trim(),
+                dueDate = dueDate,
+                priority = priority
             )
+            val newId = repository.insertTask(entity)
+            val taskWithId = entity.copy(id = newId)
+            com.example.notification.LectraNotificationScheduler.scheduleAssignmentReminders(getApplication(), taskWithId)
             showNotice("Assignment task added.")
+        }
+    }
+
+    fun updateTask(task: StudyTaskEntity) {
+        viewModelScope.launch {
+            repository.updateTask(task)
+            if (task.isCompleted) {
+                com.example.notification.LectraNotificationScheduler.cancelAssignmentReminders(getApplication(), task.id)
+            } else {
+                com.example.notification.LectraNotificationScheduler.scheduleAssignmentReminders(getApplication(), task)
+            }
+            showNotice("Assignment deadline updated.")
         }
     }
 
     fun toggleTaskCompletion(task: StudyTaskEntity) {
         viewModelScope.launch {
-            repository.updateTask(task.copy(isCompleted = !task.isCompleted))
+            val updated = task.copy(isCompleted = !task.isCompleted)
+            repository.updateTask(updated)
+            if (updated.isCompleted) {
+                com.example.notification.LectraNotificationScheduler.cancelAssignmentReminders(getApplication(), updated.id)
+            } else {
+                com.example.notification.LectraNotificationScheduler.scheduleAssignmentReminders(getApplication(), updated)
+            }
         }
     }
 
     fun deleteTask(task: StudyTaskEntity) {
         viewModelScope.launch {
             repository.deleteTask(task)
+            com.example.notification.LectraNotificationScheduler.cancelAssignmentReminders(getApplication(), task.id)
         }
     }
 

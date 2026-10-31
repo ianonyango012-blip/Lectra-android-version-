@@ -21,26 +21,38 @@ class TimetableFormTest {
     @Test
     fun timeEditingWorksCorrectly() {
         var savedStartHour = 0
+        var savedStartMinute = 0
         var savedEndHour = 0
+        var savedEndMinute = 0
 
         composeTestRule.setContent {
             LectraTheme {
                 AddEditLectureClassDialog(
-                    courses = listOf(CourseEntity(1, "CS101", "Intro", "Prof", "#FFFFFF", 3)),
+                    courses = listOf(CourseEntity(1, "CS101", "Intro", "#FFFFFF", "Prof", "Fall 2026")),
                     onDismiss = {},
-                    onConfirm = { }
+                    onConfirm = { _, _, _, _, _, sH, sM, eH, eM, _, _ ->
+                        savedStartHour = sH
+                        savedStartMinute = sM
+                        savedEndHour = eH
+                        savedEndMinute = eM
+                        true
+                    }
                 )
             }
         }
 
-        // Test editing start time
-        composeTestRule.onNodeWithTag("class_start_hour_input").performTextReplacement("15")
-        composeTestRule.onNodeWithTag("class_end_hour_input").performTextReplacement("16")
+        // Test independent hour and minute editing (e.g. 07:15 to 13:20)
+        composeTestRule.onNodeWithTag("class_start_hour_input").performTextReplacement("07")
+        composeTestRule.onNodeWithTag("class_start_minute_input").performTextReplacement("15")
+        composeTestRule.onNodeWithTag("class_end_hour_input").performTextReplacement("13")
+        composeTestRule.onNodeWithTag("class_end_minute_input").performTextReplacement("20")
 
         // Save
         composeTestRule.onNodeWithTag("save_class_button").performClick()
 
-        assert(savedStartHour == 15)
-        assert(savedEndHour == 16)
+        assert(savedStartHour == 7)
+        assert(savedStartMinute == 15)
+        assert(savedEndHour == 13)
+        assert(savedEndMinute == 20)
     }
 }

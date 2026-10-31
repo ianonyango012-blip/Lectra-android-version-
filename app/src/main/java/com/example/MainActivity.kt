@@ -38,6 +38,7 @@ import com.example.ui.LectraUiState
 import com.example.ui.LectraViewModel
 import androidx.compose.foundation.layout.Column
 import com.example.data.model.LectureClassEntity
+import com.example.data.model.StudyTaskEntity
 import com.example.ui.components.AddCourseDialog
 import com.example.ui.components.AddEditLectureClassDialog
 import com.example.ui.components.AddFlashcardDialog
@@ -155,6 +156,7 @@ fun LectraApp(
     var showAddCourseDialog by remember { mutableStateOf(false) }
     var showAddSessionDialog by remember { mutableStateOf(false) }
     var showAddTaskDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<StudyTaskEntity?>(null) }
     var showAddFlashcardDialog by remember { mutableStateOf(false) }
     var showAddQuizDialog by remember { mutableStateOf(false) }
 
@@ -172,7 +174,24 @@ fun LectraApp(
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    
+    // Time update receiver for system changes
+    val timeUpdateReceiver = remember {
+        object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                viewModel.updateDeviceTime()
+            }
+        }
+    }
+    
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val intentFilter = android.content.IntentFilter().apply {
+            addAction(android.content.Intent.ACTION_TIME_CHANGED)
+            addAction(android.content.Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(android.content.Intent.ACTION_DATE_CHANGED)
+        }
+        context.registerReceiver(timeUpdateReceiver, intentFilter)
+        
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 viewModel.updateDeviceTime()
@@ -180,6 +199,7 @@ fun LectraApp(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            context.unregisterReceiver(timeUpdateReceiver)
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
@@ -202,7 +222,8 @@ fun LectraApp(
             uiState.currentSubScreen == SubScreen.POMODORO_TIMER ||
             uiState.currentSubScreen == SubScreen.GLOBAL_SEARCH ||
             uiState.currentSubScreen == SubScreen.RESEARCH ||
-            uiState.currentSubScreen == SubScreen.PDF_VIEWER
+            uiState.currentSubScreen == SubScreen.PDF_VIEWER ||
+            uiState.currentSubScreen == SubScreen.DOCUMENT_VIEWER
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -371,10 +392,10 @@ fun LectraApp(
                     )
                 }
 
-                SubScreen.PDF_VIEWER -> {
+                SubScreen.PDF_VIEWER, SubScreen.DOCUMENT_VIEWER -> {
                     val material = uiState.activeReadingMaterial
                     if (material != null) {
-                        PdfViewerScreen(
+                        com.example.ui.screens.document.DocumentViewerDispatcher(
                             material = material,
                             annotations = uiState.activePdfAnnotations,
                             isDarkTheme = uiState.themeMode == com.example.ui.theme.ThemeMode.DARK,
@@ -412,7 +433,7 @@ fun LectraApp(
                                 onQuickAddSession = { showAddSessionDialog = true },
                                 onQuickAddTask = { showAddTaskDialog = true },
                                 onRequestPdfPicker = {
-                                    generalPdfPickerLauncher.launch(arrayOf("application/pdf"))
+                                    generalPdfPickerLauncher.launch(com.example.data.document.DocumentType.SUPPORTED_MIME_TYPES)
                                 },
                                 onOpenPomodoro = { viewModel.openPomodoroTimer(it) },
                                 onOpenResearch = { viewModel.openResearch(it) },
@@ -447,6 +468,7 @@ fun LectraApp(
                                 onDeleteSession = { viewModel.deleteSession(it) },
                                 onToggleTask = { viewModel.toggleTaskCompletion(it) },
                                 onDeleteTask = { viewModel.deleteTask(it) },
+                                onEditTask = { taskToEdit = it },
                                 onAddSessionClick = { showAddSessionDialog = true },
                                 onAddTaskClick = { showAddTaskDialog = true }
                             )
@@ -566,10 +588,14 @@ fun LectraApp(
         )
     }
 
-    if (showAddTaskDialog) {
+    if (showAddTaskDialog || taskToEdit != null) {
         AddStudyTaskDialog(
             courses = uiState.courses,
-            onDismiss = { showAddTaskDialog = false },
+            existingTask = taskToEdit,
+            onDismiss = {
+                showAddTaskDialog = false
+                taskToEdit = null
+            },
             onConfirm = { courseId, code, title, days, priority ->
                 viewModel.addTask(
                     courseId = courseId,
@@ -578,6 +604,11 @@ fun LectraApp(
                     dueDate = System.currentTimeMillis() + days * 86400000L,
                     priority = priority
                 )
+                showAddTaskDialog = false
+            },
+            onUpdate = { updatedTask ->
+                viewModel.updateTask(updatedTask)
+                taskToEdit = null
             }
         )
     }

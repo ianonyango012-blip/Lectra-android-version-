@@ -1,6 +1,10 @@
 package com.example.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -66,18 +70,37 @@ fun AcademicPreferencesScreen(
     preferences: LectraPreferences,
     onBackClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val primaryViolet = Color(0xFF7565F6)
 
     // State for notifications
+    var masterNotif by remember { mutableStateOf(preferences.masterNotificationsEnabled) }
     var notifClasses by remember { mutableStateOf(preferences.notifyClasses) }
     var notifAssignments by remember { mutableStateOf(preferences.notifyAssignments) }
     var notifSessions by remember { mutableStateOf(preferences.notifySessions) }
     var notifRevision by remember { mutableStateOf(preferences.notifyRevision) }
-    var notifLeadTime by remember { mutableIntStateOf(preferences.notificationLeadTimeMinutes) }
+    var classReminderTime by remember { mutableIntStateOf(preferences.timetableClassReminderMinutes) }
+
+    var assignmentReminder2Days by remember { mutableStateOf(preferences.assignmentReminder2Days) }
+    var assignmentReminder1Day by remember { mutableStateOf(preferences.assignmentReminder1Day) }
+    var assignmentReminderDueDate by remember { mutableStateOf(preferences.assignmentReminderDueDate) }
+
+    // System notification permission check
+    var hasSystemNotifPermission by remember {
+        mutableStateOf(androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasSystemNotifPermission = isGranted
+        if (isGranted) {
+            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+        }
+    }
 
     // State for timetable
     var firstDayOfWeek by remember { mutableIntStateOf(preferences.timetableFirstDayOfWeek) }
-    var classReminderTime by remember { mutableIntStateOf(preferences.timetableClassReminderMinutes) }
     var defaultTimetableView by remember { mutableStateOf(preferences.timetableDefaultViewMode) }
 
     // State for reading
@@ -160,7 +183,7 @@ fun AcademicPreferencesScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Configure proactive study and deadline alerts",
+                                    text = "Native Android local class & deadline alerts",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -169,94 +192,280 @@ fun AcademicPreferencesScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Toggles
+                        // 1. Master Toggle
+                        PreferenceToggleRow(
+                            title = "Master Notifications",
+                            subtitle = "Enable or disable all proactive university alerts",
+                            checked = masterNotif,
+                            testTag = "toggle_master_notifications",
+                            onCheckedChange = {
+                                masterNotif = it
+                                preferences.masterNotificationsEnabled = it
+                                com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                            }
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        // 2. Class Notifications Toggle
                         PreferenceToggleRow(
                             title = "Upcoming Classes",
                             subtitle = "Alert before university lecture and lab sessions",
-                            checked = notifClasses,
+                            checked = notifClasses && masterNotif,
+                            enabled = masterNotif,
                             testTag = "toggle_notif_classes",
                             onCheckedChange = {
                                 notifClasses = it
                                 preferences.notifyClasses = it
+                                com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
                             }
                         )
 
+                        if (masterNotif && notifClasses) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, top = 4.dp, bottom = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Class Reminder Interval:",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf(5, 10, 15, 30, 60).forEach { mins ->
+                                        val label = if (mins >= 60) "60m" else "${mins}m"
+                                        val isSelected = classReminderTime == mins
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                classReminderTime = mins
+                                                preferences.timetableClassReminderMinutes = mins
+                                                com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = if (mins == 15) "$label (Default)" else label,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = primaryViolet,
+                                                selectedLabelColor = Color.White
+                                            ),
+                                            modifier = Modifier.testTag("chip_class_interval_$mins")
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        // 3. Assignment Notifications Toggle
                         PreferenceToggleRow(
                             title = "Assignment Deadlines",
-                            subtitle = "Reminder before coursework and project submission dates",
-                            checked = notifAssignments,
+                            subtitle = "Reminders for coursework and project submission dates",
+                            checked = notifAssignments && masterNotif,
+                            enabled = masterNotif,
                             testTag = "toggle_notif_assignments",
                             onCheckedChange = {
                                 notifAssignments = it
                                 preferences.notifyAssignments = it
+                                com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
                             }
                         )
 
-                        PreferenceToggleRow(
-                            title = "Study Session Reminders",
-                            subtitle = "Notification when scheduled personal study time arrives",
-                            checked = notifSessions,
-                            testTag = "toggle_notif_sessions",
-                            onCheckedChange = {
-                                notifSessions = it
-                                preferences.notifySessions = it
-                            }
-                        )
-
-                        PreferenceToggleRow(
-                            title = "Revision & Active Recall",
-                            subtitle = "Spaced repetition reminders for saved flashcard decks",
-                            checked = notifRevision,
-                            testTag = "toggle_notif_revision",
-                            onCheckedChange = {
-                                notifRevision = it
-                                preferences.notifyRevision = it
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Reminder timing
-                        Text(
-                            text = "Default Reminder Timing:",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(10, 15, 30, 60).forEach { mins ->
-                                val label = if (mins >= 60) "1 hour before" else "$mins min before"
-                                FilterChip(
-                                    selected = notifLeadTime == mins,
-                                    onClick = {
-                                        notifLeadTime = mins
-                                        preferences.notificationLeadTimeMinutes = mins
-                                    },
-                                    label = { Text(label, fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = primaryViolet,
-                                        selectedLabelColor = Color.White
-                                    )
+                        if (masterNotif && notifAssignments) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, top = 4.dp, bottom = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Assignment Reminder Schedule:",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            assignmentReminder2Days = !assignmentReminder2Days
+                                            preferences.assignmentReminder2Days = assignmentReminder2Days
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = assignmentReminder2Days,
+                                        onCheckedChange = {
+                                            assignmentReminder2Days = it
+                                            preferences.assignmentReminder2Days = it
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        },
+                                        modifier = Modifier.testTag("checkbox_remind_2_days")
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("2 days before deadline (Default)", fontSize = 12.sp)
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            assignmentReminder1Day = !assignmentReminder1Day
+                                            preferences.assignmentReminder1Day = assignmentReminder1Day
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = assignmentReminder1Day,
+                                        onCheckedChange = {
+                                            assignmentReminder1Day = it
+                                            preferences.assignmentReminder1Day = it
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        },
+                                        modifier = Modifier.testTag("checkbox_remind_1_day")
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("1 day before deadline (Second reminder)", fontSize = 12.sp)
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            assignmentReminderDueDate = !assignmentReminderDueDate
+                                            preferences.assignmentReminderDueDate = assignmentReminderDueDate
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = assignmentReminderDueDate,
+                                        onCheckedChange = {
+                                            assignmentReminderDueDate = it
+                                            preferences.assignmentReminderDueDate = it
+                                            com.example.notification.LectraNotificationScheduler.rescheduleAll(context)
+                                        },
+                                        modifier = Modifier.testTag("checkbox_remind_due_date")
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("On the due date (Final reminder)", fontSize = 12.sp)
+                                }
                             }
                         }
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "Android 13+ requires notification permissions for system alert banners. Reminders operate entirely on-device without network telemetry.",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(10.dp)
-                                )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        // 4. Notification Permission Status & System Controls
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (hasSystemNotifPermission) {
+                                Color(0xFF10B981).copy(alpha = 0.1f)
+                            } else {
+                                Color(0xFFF59E0B).copy(alpha = 0.15f)
+                            },
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (hasSystemNotifPermission) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFFF59E0B).copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = if (hasSystemNotifPermission) Icons.Default.Check else Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = if (hasSystemNotifPermission) Color(0xFF10B981) else Color(0xFFD97706),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (hasSystemNotifPermission) "System Permission: Granted" else "System Permission: Denied",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (hasSystemNotifPermission) Color(0xFF047857) else Color(0xFFB45309)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                if (!hasSystemNotifPermission) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Android notification permission is required to deliver reminders. Tapping below opens app settings.",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            androidx.compose.material3.Button(
+                                                onClick = {
+                                                    permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                                },
+                                                modifier = Modifier.weight(1f).testTag("button_grant_notification_permission"),
+                                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                                    containerColor = primaryViolet
+                                                )
+                                            ) {
+                                                Text("Grant Permission", fontSize = 11.sp)
+                                            }
+                                        }
+
+                                        androidx.compose.material3.OutlinedButton(
+                                            onClick = {
+                                                try {
+                                                    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                        Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                                            putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                                        }
+                                                    } else {
+                                                        Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                                        }
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("LectraNotif", "Error opening settings: ${e.message}")
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f).testTag("button_open_notification_settings")
+                                        ) {
+                                            Text("App Settings", fontSize = 11.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -646,6 +855,7 @@ private fun PreferenceToggleRow(
     subtitle: String,
     checked: Boolean,
     testTag: String,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val primaryViolet = Color(0xFF7565F6)
@@ -661,12 +871,12 @@ private fun PreferenceToggleRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
 
@@ -674,6 +884,7 @@ private fun PreferenceToggleRow(
 
         Switch(
             checked = checked,
+            enabled = enabled,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,

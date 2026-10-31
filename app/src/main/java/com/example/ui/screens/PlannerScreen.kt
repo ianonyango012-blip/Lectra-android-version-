@@ -92,6 +92,7 @@ fun PlannerScreen(
     onDeleteSession: (StudySessionEntity) -> Unit,
     onToggleTask: (StudyTaskEntity) -> Unit,
     onDeleteTask: (StudyTaskEntity) -> Unit,
+    onEditTask: (StudyTaskEntity) -> Unit = {},
     onAddSessionClick: () -> Unit,
     onAddTaskClick: () -> Unit
 ) {
@@ -715,7 +716,11 @@ fun PlannerScreen(
                                         onCheckedChange = { onToggleTask(task) }
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onEditTask(task) }
+                                    ) {
                                         Text(
                                             text = task.title,
                                             style = MaterialTheme.typography.bodyMedium.copy(

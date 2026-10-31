@@ -173,7 +173,7 @@ class PdfStudyWorkspaceTest {
         viewModel.openPdfViewer(material)
 
         val uiState = viewModel.uiState.value
-        assertEquals(SubScreen.PDF_VIEWER, uiState.currentSubScreen)
+        assertEquals(SubScreen.DOCUMENT_VIEWER, uiState.currentSubScreen)
         assertEquals(material.id, uiState.activeReadingMaterial?.id)
 
         // Test closing subscreen

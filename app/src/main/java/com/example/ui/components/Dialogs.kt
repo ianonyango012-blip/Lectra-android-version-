@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Add
 import com.example.data.model.CourseEntity
 import com.example.data.model.LectureClassEntity
+import com.example.data.model.StudyTaskEntity
 
 @Composable
 fun AddCourseDialog(
@@ -497,8 +498,10 @@ fun AddStudySessionDialog(
 @Composable
 fun AddStudyTaskDialog(
     courses: List<CourseEntity>,
+    existingTask: StudyTaskEntity? = null,
     onDismiss: () -> Unit,
-    onConfirm: (courseId: Long, courseCode: String, title: String, dueDays: Int, priority: String) -> Unit
+    onConfirm: (courseId: Long, courseCode: String, title: String, dueDays: Int, priority: String) -> Unit,
+    onUpdate: ((StudyTaskEntity) -> Unit)? = null
 ) {
     if (courses.isEmpty()) {
         AlertDialog(
@@ -510,15 +513,25 @@ fun AddStudyTaskDialog(
         return
     }
 
-    var selectedCourse by remember { mutableStateOf(courses.first()) }
+    val initialDays = if (existingTask != null && existingTask.dueDate != null) {
+        val diffDays = ((existingTask.dueDate - System.currentTimeMillis()) / (24 * 3600 * 1000L)).toInt()
+        diffDays.coerceAtLeast(1).toString()
+    } else "3"
+
+    var selectedCourse by remember {
+        mutableStateOf(
+            if (existingTask != null) courses.find { it.id == existingTask.courseId } ?: courses.first()
+            else courses.first()
+        )
+    }
     var courseDropdownExpanded by remember { mutableStateOf(false) }
-    var title by remember { mutableStateOf("") }
-    var dueDays by remember { mutableStateOf("3") }
-    var priority by remember { mutableStateOf("HIGH") }
+    var title by remember { mutableStateOf(existingTask?.title ?: "") }
+    var dueDays by remember { mutableStateOf(initialDays) }
+    var priority by remember { mutableStateOf(existingTask?.priority ?: "HIGH") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Assignment or Exam Task", fontWeight = FontWeight.Bold) },
+        title = { Text(if (existingTask != null) "Edit Assignment Deadline" else "Add Assignment or Exam Task", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -597,12 +610,24 @@ fun AddStudyTaskDialog(
                 onClick = {
                     if (title.isNotBlank()) {
                         val days = dueDays.toIntOrNull() ?: 3
-                        onConfirm(selectedCourse.id, selectedCourse.code, title, days, priority)
+                        if (existingTask != null && onUpdate != null) {
+                            onUpdate(
+                                existingTask.copy(
+                                    courseId = selectedCourse.id,
+                                    courseCode = selectedCourse.code,
+                                    title = title.trim(),
+                                    dueDate = System.currentTimeMillis() + days * 86400000L,
+                                    priority = priority
+                                )
+                            )
+                        } else {
+                            onConfirm(selectedCourse.id, selectedCourse.code, title.trim(), days, priority)
+                        }
                         onDismiss()
                     }
                 }
             ) {
-                Text("Add Task")
+                Text(if (existingTask != null) "Update Task" else "Add Task")
             }
         },
         dismissButton = {
@@ -1004,11 +1029,7 @@ fun AddEditLectureClassDialog(
 
                 // Time Pickers (Start & End)
                 Text("Schedule Timing", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                
-                var startHourStr by remember { mutableStateOf((existingClass?.startHour ?: 9).toString()) }
-                var startMinuteStr by remember { mutableStateOf((existingClass?.startMinute ?: 0).toString()) }
-                var endHourStr by remember { mutableStateOf((existingClass?.endHour ?: 11).toString()) }
-                var endMinuteStr by remember { mutableStateOf((existingClass?.endMinute ?: 0).toString()) }
+
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1021,7 +1042,10 @@ fun AddEditLectureClassDialog(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             OutlinedTextField(
                                 value = startHourStr,
-                                onValueChange = { startHourStr = it.take(2) },
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    startHourStr = if (digits.length <= 2) digits else digits.takeLast(2)
+                                },
                                 label = { Text("Hr") },
                                 singleLine = true,
                                 modifier = Modifier
@@ -1030,7 +1054,10 @@ fun AddEditLectureClassDialog(
                             )
                             OutlinedTextField(
                                 value = startMinuteStr,
-                                onValueChange = { startMinuteStr = it.take(2) },
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    startMinuteStr = if (digits.length <= 2) digits else digits.takeLast(2)
+                                },
                                 label = { Text("Min") },
                                 singleLine = true,
                                 modifier = Modifier
@@ -1046,7 +1073,10 @@ fun AddEditLectureClassDialog(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             OutlinedTextField(
                                 value = endHourStr,
-                                onValueChange = { endHourStr = it.take(2) },
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    endHourStr = if (digits.length <= 2) digits else digits.takeLast(2)
+                                },
                                 label = { Text("Hr") },
                                 singleLine = true,
                                 modifier = Modifier
@@ -1055,7 +1085,10 @@ fun AddEditLectureClassDialog(
                             )
                             OutlinedTextField(
                                 value = endMinuteStr,
-                                onValueChange = { endMinuteStr = it.take(2) },
+                                onValueChange = { input ->
+                                    val digits = input.filter { it.isDigit() }
+                                    endMinuteStr = if (digits.length <= 2) digits else digits.takeLast(2)
+                                },
                                 label = { Text("Min") },
                                 singleLine = true,
                                 modifier = Modifier

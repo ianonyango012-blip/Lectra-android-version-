@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,10 +32,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material3.AlertDialog
@@ -47,10 +50,14 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -71,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.document.DocumentType
 import com.example.data.model.CourseEntity
 import com.example.data.model.LectureMaterialEntity
 import com.example.data.model.StudyTaskEntity
@@ -127,6 +135,8 @@ fun CourseDetailScreen(
     var unitForNewTopic by remember { mutableStateOf<UnitEntity?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var selectedDocFilter by remember { mutableStateOf("All") }
+    var docSearchQuery by remember { mutableStateOf("") }
 
     val pdfPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -391,7 +401,16 @@ fun CourseDetailScreen(
             }
 
             1 -> {
-                // Notes & Lecture PDFs Tab
+                // Notes & Lecture Documents Tab (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, EPUB)
+                val filteredMaterials = materials.filter { mat ->
+                    val type = DocumentType.fromMimeOrFilename(mat.mimeType, mat.title) ?: DocumentType.PDF
+                    val matchesFilter = selectedDocFilter.equals("All", ignoreCase = true) ||
+                            type.filterCategory.equals(selectedDocFilter, ignoreCase = true)
+                    val matchesSearch = docSearchQuery.isBlank() ||
+                            mat.title.contains(docSearchQuery, ignoreCase = true)
+                    matchesFilter && matchesSearch
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -422,23 +441,105 @@ fun CourseDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "Attach lecture slides and PDFs securely via storage picker.",
+                                        text = "Attach PDF, Word, Excel, PowerPoint, Text & EPUB files.",
                                         fontSize = 12.sp,
                                         color = secondaryText
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Button(
-                                    onClick = { pdfPickerLauncher.launch(arrayOf("application/pdf")) },
+                                    onClick = { pdfPickerLauncher.launch(DocumentType.SUPPORTED_MIME_TYPES) },
                                     colors = ButtonDefaults.buttonColors(containerColor = primaryViolet),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.testTag("pick_pdf_button")
                                 ) {
                                     Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Pick PDF", fontSize = 13.sp)
+                                    Text("Import File", fontSize = 13.sp)
                                 }
                             }
+                        }
+                    }
+
+                    item(key = "document_filters_row") {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Document Library",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryText
+                                )
+                                Text(
+                                    text = "${materials.size} documents",
+                                    fontSize = 12.sp,
+                                    color = secondaryText
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(DocumentType.ALL_FILTER_CATEGORIES) { category ->
+                                    val isSelected = selectedDocFilter.equals(category, ignoreCase = true)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { selectedDocFilter = category },
+                                        label = { Text(category) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = primaryViolet,
+                                            selectedLabelColor = Color.White
+                                        ),
+                                        modifier = Modifier.testTag("filter_chip_$category")
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (materials.isNotEmpty()) {
+                        item(key = "document_search_bar") {
+                            OutlinedTextField(
+                                value = docSearchQuery,
+                                onValueChange = { docSearchQuery = it },
+                                placeholder = { Text("Search documents...", fontSize = 13.sp) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = secondaryText,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (docSearchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { docSearchQuery = "" }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear",
+                                                tint = secondaryText,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = cardBackground,
+                                    unfocusedContainerColor = cardBackground,
+                                    focusedBorderColor = primaryViolet,
+                                    unfocusedBorderColor = borderColor
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("doc_search_field")
+                            )
                         }
                     }
 
@@ -464,18 +565,56 @@ fun CourseDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
-                                        text = "No notes or PDFs linked to this course yet.",
+                                        text = "No lecture notes or documents in this course yet.",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = secondaryText
                                     )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Import PDF, DOC, XLS, PPT, TXT or EPUB files to start reading.",
+                                        fontSize = 12.sp,
+                                        color = secondaryText.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    } else if (filteredMaterials.isEmpty()) {
+                        item(key = "empty_filtered_state") {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = cardBackground),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "No documents found matching \"$selectedDocFilter\".",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = secondaryText
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    TextButton(onClick = {
+                                        selectedDocFilter = "All"
+                                        docSearchQuery = ""
+                                    }) {
+                                        Text("Show All Documents")
+                                    }
                                 }
                             }
                         }
                     } else {
-                        items(materials, key = { "course_material_${it.id}" }) { material ->
+                        items(filteredMaterials, key = { "course_material_${it.id}" }) { material ->
+                            val unitTitle = units.find { it.id == material.unitId }?.let { "Unit ${it.unitNumber}: ${it.title}" }
                             LectureMaterialCard(
                                 material = material,
+                                unitTitle = unitTitle,
                                 isDark = isDark,
                                 cardBackground = cardBackground,
                                 borderColor = borderColor,
@@ -760,6 +899,7 @@ private fun UnitAccordionCard(
 @Composable
 private fun LectureMaterialCard(
     material: LectureMaterialEntity,
+    unitTitle: String?,
     isDark: Boolean,
     cardBackground: Color,
     borderColor: Color,
@@ -768,11 +908,34 @@ private fun LectureMaterialCard(
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
+    val docType = remember(material.mimeType, material.fileUriString, material.title) {
+        DocumentType.fromMimeOrFilename(material.mimeType, material.title) ?: DocumentType.PDF
+    }
+
+    val formattedSize = remember(material.fileSizeBytes) {
+        if (material.fileSizeBytes <= 0L) {
+            ""
+        } else if (material.fileSizeBytes < 1024 * 1024) {
+            "${(material.fileSizeBytes / 1024).coerceAtLeast(1)} KB"
+        } else {
+            String.format(java.util.Locale.US, "%.1f MB", material.fileSizeBytes.toDouble() / (1024 * 1024))
+        }
+    }
+
+    val progressDetail = when (docType.filterCategory) {
+        "PPT" -> "Slide ${material.lastReadPage} of ${material.totalPages}"
+        "EPUB" -> "Chapter ${material.lastReadPage} of ${material.totalPages}"
+        "XLS" -> "${material.totalPages} Sheet(s)"
+        "TXT" -> "${material.totalPages} Lines"
+        else -> "Page ${material.lastReadPage} of ${material.totalPages}"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .testTag("lecture_material_card_${material.title}"),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = cardBackground),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
@@ -790,16 +953,16 @@ private fun LectureMaterialCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(42.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isDark) Color(0xFF381C26) else Color(0xFFFFECEF)),
+                        .background(docType.badgeColor.copy(alpha = if (isDark) 0.25f else 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "PDF",
-                        fontSize = 10.sp,
+                        text = docType.filterCategory,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color(0xFFEF4444)
+                        color = docType.badgeColor
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -813,18 +976,37 @@ private fun LectureMaterialCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Page ${material.lastReadPage} of ${material.totalPages}",
-                        fontSize = 11.sp,
-                        color = secondaryText
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = progressDetail,
+                            fontSize = 11.sp,
+                            color = secondaryText
+                        )
+                        if (formattedSize.isNotBlank()) {
+                            Text(
+                                text = " • $formattedSize",
+                                fontSize = 11.sp,
+                                color = secondaryText
+                            )
+                        }
+                        if (!unitTitle.isNullOrBlank()) {
+                            Text(
+                                text = " • $unitTitle",
+                                fontSize = 11.sp,
+                                color = docType.badgeColor,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete PDF",
+                    contentDescription = "Delete Document",
                     tint = secondaryText
                 )
             }

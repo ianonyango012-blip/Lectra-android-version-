@@ -37,5 +37,6 @@ enum class SubScreen {
     POMODORO_TIMER,
     GLOBAL_SEARCH,
     RESEARCH,
-    PDF_VIEWER
+    PDF_VIEWER,
+    DOCUMENT_VIEWER
 }

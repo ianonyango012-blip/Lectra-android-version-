@@ -612,7 +612,7 @@ fun HomeScreen(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.testTag("recent_activity_import_pdf")
                             ) {
-                                Text("Import PDF", fontSize = 13.sp)
+                                Text("Import Document", fontSize = 13.sp)
                             }
                         }
                     }
@@ -621,17 +621,20 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Display lecture materials (PDFs)
+                        // Display lecture materials (PDF, DOC, XLS, PPT, TXT, EPUB)
                         recentMaterials.forEach { material ->
                             val course = uiState.courses.find { it.id == material.courseId }
                             val courseTitle = course?.title ?: course?.code ?: "Lecture Material"
                             val timestampStr = formatTimestamp(material.importDate)
+                            val docType = com.example.data.document.DocumentType.fromMimeOrFilename(material.mimeType, material.title) ?: com.example.data.document.DocumentType.PDF
 
                             RecentActivityCard(
                                 title = material.title,
                                 courseSubtitle = courseTitle,
                                 timestamp = timestampStr,
                                 isPdf = true,
+                                badgeText = docType.filterCategory,
+                                badgeColor = docType.badgeColor,
                                 isDark = isDark,
                                 cardBackground = cardBackground,
                                 borderColor = borderColor,
@@ -1099,6 +1102,8 @@ private fun RecentActivityCard(
     courseSubtitle: String,
     timestamp: String,
     isPdf: Boolean,
+    badgeText: String = "PDF",
+    badgeColor: Color = Color(0xFFEF4444),
     isDark: Boolean,
     cardBackground: Color,
     borderColor: Color,
@@ -1128,18 +1133,18 @@ private fun RecentActivityCard(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isDark) Color(0xFF381C26) else Color(0xFFFFECEF)),
+                        .background(badgeColor.copy(alpha = if (isDark) 0.25f else 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(Color(0xFFEF4444)),
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(badgeColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "PDF",
+                            text = badgeText,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.White

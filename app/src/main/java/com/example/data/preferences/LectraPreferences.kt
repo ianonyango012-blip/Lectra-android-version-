@@ -29,6 +29,10 @@ class LectraPreferences(context: Context) {
     // ==========================================
     // 2. ACADEMIC NOTIFICATION PREFERENCES
     // ==========================================
+    var masterNotificationsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_MASTER, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_MASTER, value).apply()
+
     var notifyClasses: Boolean
         get() = prefs.getBoolean(KEY_NOTIF_CLASSES, true)
         set(value) = prefs.edit().putBoolean(KEY_NOTIF_CLASSES, value).apply()
@@ -48,6 +52,18 @@ class LectraPreferences(context: Context) {
     var notificationLeadTimeMinutes: Int
         get() = prefs.getInt(KEY_NOTIF_LEAD_TIME, 15)
         set(value) = prefs.edit().putInt(KEY_NOTIF_LEAD_TIME, value).apply()
+
+    var assignmentReminder2Days: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_ASSIGNMENT_2_DAYS, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_ASSIGNMENT_2_DAYS, value).apply()
+
+    var assignmentReminder1Day: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_ASSIGNMENT_1_DAY, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_ASSIGNMENT_1_DAY, value).apply()
+
+    var assignmentReminderDueDate: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_ASSIGNMENT_DUE_DATE, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_ASSIGNMENT_DUE_DATE, value).apply()
 
     // ==========================================
     // 3. TIMETABLE PREFERENCES
@@ -107,11 +123,15 @@ class LectraPreferences(context: Context) {
 
     companion object {
         const val KEY_THEME_MODE = "app_theme_mode"
+        const val KEY_NOTIF_MASTER = "notif_master_enabled"
         const val KEY_NOTIF_CLASSES = "notif_classes_enabled"
         const val KEY_NOTIF_ASSIGNMENTS = "notif_assignments_enabled"
         const val KEY_NOTIF_SESSIONS = "notif_sessions_enabled"
         const val KEY_NOTIF_REVISION = "notif_revision_enabled"
         const val KEY_NOTIF_LEAD_TIME = "notif_lead_time_minutes"
+        const val KEY_NOTIF_ASSIGNMENT_2_DAYS = "notif_assignment_2_days"
+        const val KEY_NOTIF_ASSIGNMENT_1_DAY = "notif_assignment_1_day"
+        const val KEY_NOTIF_ASSIGNMENT_DUE_DATE = "notif_assignment_due_date"
         const val KEY_TIMETABLE_FIRST_DAY = "timetable_first_day_of_week"
         const val KEY_TIMETABLE_REMINDER_MINUTES = "timetable_class_reminder_minutes"
         const val KEY_TIMETABLE_VIEW_MODE = "timetable_default_view_mode"
