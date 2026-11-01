@@ -92,7 +92,7 @@ object DocumentStorageManager {
             }
 
             // 2. Validate file integrity based on format
-            val validation = validateFileIntegrity(destinationFile, docType)
+            val validation = validateFileIntegrity(context, destinationFile, docType)
             if (validation is ValidationResult.Failure) {
                 destinationFile.delete()
                 return DocumentImportOutcome.Error(validation.message)
@@ -118,7 +118,7 @@ object DocumentStorageManager {
         data class Failure(val message: String) : ValidationResult()
     }
 
-    private fun validateFileIntegrity(file: File, type: DocumentType): ValidationResult {
+    private fun validateFileIntegrity(context: Context, file: File, type: DocumentType): ValidationResult {
         return try {
             when (type) {
                 DocumentType.PDF -> {
@@ -151,14 +151,14 @@ object DocumentStorageManager {
 
                 DocumentType.DOCX -> {
                     validateZipPackage(file, "word/document.xml", "Word (.docx)") { zip ->
-                        val doc = WordDocumentParser.parse(file, file.name)
+                        val doc = WordDocumentParser.parse(context, file, file.name)
                         doc.paragraphs.size.coerceAtLeast(1)
                     }
                 }
 
                 DocumentType.DOC -> {
                     if (file.length() < 32) return ValidationResult.Failure("The selected file is too small to be a valid Word document.")
-                    val doc = WordDocumentParser.parse(file, file.name)
+                    val doc = WordDocumentParser.parse(context, file, file.name)
                     ValidationResult.Success(doc.paragraphs.size.coerceAtLeast(1))
                 }
 
@@ -177,14 +177,14 @@ object DocumentStorageManager {
 
                 DocumentType.PPTX -> {
                     validateZipPackage(file, "ppt/presentation.xml", "PowerPoint (.pptx)") { zip ->
-                        val pres = PowerPointPresentationParser.parse(file, file.name)
+                        val pres = PowerPointPresentationParser.parse(context, file, file.name)
                         pres.totalSlides.coerceAtLeast(1)
                     }
                 }
 
                 DocumentType.PPT -> {
                     if (file.length() < 32) return ValidationResult.Failure("The selected file is too small to be a valid PowerPoint presentation.")
-                    val pres = PowerPointPresentationParser.parse(file, file.name)
+                    val pres = PowerPointPresentationParser.parse(context, file, file.name)
                     ValidationResult.Success(pres.totalSlides.coerceAtLeast(1))
                 }
 

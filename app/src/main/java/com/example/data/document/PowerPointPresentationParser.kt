@@ -1,5 +1,6 @@
 package com.example.data.document
 
+import android.content.Context
 import android.util.Log
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -11,51 +12,78 @@ data class SlideModel(
     val slideNumber: Int,
     val title: String,
     val bullets: List<String>,
-    val notes: String? = null
+    val notes: String? = null,
+    val images: List<String> = emptyList() // List of ZIP entry paths for images
 )
 
 data class PresentationModel(
     val title: String,
     val slides: List<SlideModel>,
-    val totalSlides: Int
+    val totalSlides: Int,
+    val mediaFiles: Map<String, String> = emptyMap() // Map rId to ZIP entry path
 )
 
 object PowerPointPresentationParser {
 
     private const val TAG = "PowerPointParser"
 
-    fun parse(file: File, fallbackTitle: String): PresentationModel {
+    fun parse(context: Context, file: File, fallbackTitle: String): PresentationModel {
         return if (file.name.endsWith(".pptx", ignoreCase = true)) {
-            parsePptx(file, fallbackTitle)
+            parsePptx(context, file, fallbackTitle)
         } else {
             parsePptBinary(file, fallbackTitle)
         }
     }
 
-    private fun parsePptx(file: File, fallbackTitle: String): PresentationModel {
+    private fun parsePptx(context: Context, file: File, fallbackTitle: String): PresentationModel {
         val slides = mutableListOf<SlideModel>()
+        val mediaMap = MediaExtractor.extractMediaToCache(context, file, "ppt/media/", "pptx_${file.name.hashCode()}")
         val cleanTitle = fallbackTitle.removeSuffix(".pptx").removeSuffix(".PPTX")
 
         try {
             ZipFile(file).use { zip ->
-                // Collect and sort all slide entries
                 val slideEntries = zip.entries().asSequence()
                     .filter { it.name.startsWith("ppt/slides/slide") && it.name.endsWith(".xml") }
                     .sortedBy { entry ->
-                        // Extract numeric index from slide1.xml, slide2.xml, etc.
                         val numStr = entry.name.substringAfter("slide").substringBefore(".xml")
                         numStr.toIntOrNull() ?: 0
                     }
                     .toList()
 
                 for ((index, entry) in slideEntries.withIndex()) {
+                    val slideNum = index + 1
+                    val slideImages = mutableListOf<String>()
+                    val relsEntry = zip.getEntry("ppt/slides/_rels/slide$slideNum.xml.rels")
+                    
+                    relsEntry?.let { relEntry ->
+                        zip.getInputStream(relEntry).use { relsStream ->
+                            val factory = XmlPullParserFactory.newInstance()
+                            val parser = factory.newPullParser()
+                            parser.setInput(relsStream, "UTF-8")
+                            var event = parser.eventType
+                            while (event != XmlPullParser.END_DOCUMENT) {
+                                if (event == XmlPullParser.START_TAG && parser.name == "Relationship") {
+                                    val target = parser.getAttributeValue(null, "Target") ?: ""
+                                    if (target.contains("media/")) {
+                                        val mediaEntryPath = "ppt/${target.substringAfter("../")}"
+                                        mediaMap[mediaEntryPath]?.let { localPath ->
+                                            slideImages.add(localPath)
+                                        }
+                                    }
+                                }
+                                event = parser.next()
+                            }
+                        }
+                    }
+
                     zip.getInputStream(entry).use { stream ->
-                        val (slideTitle, bullets) = parseSlideXml(stream, index + 1)
+                        val (slideTitle, bullets) = parseSlideXml(stream, slideNum)
                         slides.add(
                             SlideModel(
-                                slideNumber = index + 1,
+                                slideNumber = slideNum,
                                 title = slideTitle,
-                                bullets = bullets
+                                bullets = bullets,
+                                images = slideImages
                             )
                         )
                     }
@@ -84,7 +112,8 @@ object PowerPointPresentationParser {
         return PresentationModel(
             title = presTitle,
             slides = slides,
-            totalSlides = slides.size
+            totalSlides = slides.size,
+            mediaFiles = mediaMap
         )
     }
 

@@ -1,5 +1,6 @@
 package com.example.data.document
 
+import android.content.Context
 import android.util.Log
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -13,7 +14,8 @@ data class WordParagraph(
     val text: String,
     val isHeading: Boolean = false,
     val headingLevel: Int = 0,
-    val isBullet: Boolean = false
+    val isBullet: Boolean = false,
+    val images: List<String> = emptyList()
 )
 
 data class WordTable(
@@ -33,26 +35,52 @@ object WordDocumentParser {
 
     private const val TAG = "WordDocumentParser"
 
-    fun parse(file: File, fallbackTitle: String): WordDocumentModel {
+    fun parse(context: Context, file: File, fallbackTitle: String): WordDocumentModel {
         return if (file.name.endsWith(".docx", ignoreCase = true)) {
-            parseDocx(file, fallbackTitle)
+            parseDocx(context, file, fallbackTitle)
         } else {
             parseDocBinary(file, fallbackTitle)
         }
     }
 
-    private fun parseDocx(file: File, fallbackTitle: String): WordDocumentModel {
+    private fun parseDocx(context: Context, file: File, fallbackTitle: String): WordDocumentModel {
         val paragraphs = mutableListOf<WordParagraph>()
         val tables = mutableListOf<WordTable>()
         var docTitle = fallbackTitle.removeSuffix(".docx").removeSuffix(".DOCX")
 
+        val mediaMap = MediaExtractor.extractMediaToCache(context, file, "word/media/", "docx_${file.name.hashCode()}")
+        val relsMap = mutableMapOf<String, String>() // rId to local path
+
         try {
             ZipFile(file).use { zip ->
+                // Parse rels
+                val relsEntry = zip.getEntry("word/_rels/document.xml.rels")
+                relsEntry?.let { entry ->
+                    zip.getInputStream(entry).use { stream ->
+                        val factory = XmlPullParserFactory.newInstance()
+                        val parser = factory.newPullParser()
+                        parser.setInput(stream, "UTF-8")
+                        var event = parser.eventType
+                        while (event != XmlPullParser.END_DOCUMENT) {
+                            if (event == XmlPullParser.START_TAG && parser.name == "Relationship") {
+                                val id = parser.getAttributeValue(null, "Id") ?: ""
+                                val target = parser.getAttributeValue(null, "Target") ?: ""
+                                if (target.startsWith("media/")) {
+                                    mediaMap["word/$target"]?.let { localPath ->
+                                        relsMap[id] = localPath
+                                    }
+                                }
+                            }
+                            event = parser.next()
+                        }
+                    }
+                }
+
                 val entry = zip.getEntry("word/document.xml")
                     ?: zip.entries().asSequence().find { it.name.endsWith("document.xml") }
                 if (entry != null) {
                     zip.getInputStream(entry).use { stream ->
-                        val (parsedParas, parsedTables) = parseDocumentXml(stream)
+                        val (parsedParas, parsedTables) = parseDocumentXml(stream, relsMap)
                         paragraphs.addAll(parsedParas)
                         tables.addAll(parsedTables)
                     }
@@ -91,7 +119,7 @@ object WordDocumentParser {
         )
     }
 
-    private fun parseDocumentXml(inputStream: InputStream): Pair<List<WordParagraph>, List<WordTable>> {
+    private fun parseDocumentXml(inputStream: InputStream, relsMap: Map<String, String>): Pair<List<WordParagraph>, List<WordTable>> {
         val paragraphs = mutableListOf<WordParagraph>()
         val tables = mutableListOf<WordTable>()
 
@@ -110,6 +138,7 @@ object WordDocumentParser {
             var currentParagraphText = StringBuilder()
             var currentHeadingLevel = 0
             var isCurrentBullet = false
+            var currentImages = mutableListOf<String>()
 
             var currentTableRows = mutableListOf<MutableList<String>>()
             var currentRowCells = mutableListOf<String>()
@@ -142,6 +171,7 @@ object WordDocumentParser {
                                 currentParagraphText = StringBuilder()
                                 currentHeadingLevel = 0
                                 isCurrentBullet = false
+                                currentImages = mutableListOf()
                             }
                             "pStyle" -> {
                                 val styleVal = parser.getAttributeValue(null, "val") ?: ""
@@ -157,6 +187,14 @@ object WordDocumentParser {
                             }
                             "numPr" -> {
                                 isCurrentBullet = true
+                            }
+                            "blip" -> {
+                                val embed = parser.getAttributeValue("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed")
+                                if (embed != null) {
+                                    relsMap[embed]?.let { localPath ->
+                                        currentImages.add(localPath)
+                                    }
+                                }
                             }
                             "t" -> {
                                 val text = parser.nextText()
@@ -195,13 +233,14 @@ object WordDocumentParser {
                             "p" -> {
                                 inParagraph = false
                                 val pText = currentParagraphText.toString().trim()
-                                if (pText.isNotBlank() && !inTableCell) {
+                                if ((pText.isNotBlank() || currentImages.isNotEmpty()) && !inTableCell) {
                                     paragraphs.add(
                                         WordParagraph(
                                             text = pText,
                                             isHeading = currentHeadingLevel > 0,
                                             headingLevel = currentHeadingLevel,
-                                            isBullet = isCurrentBullet
+                                            isBullet = isCurrentBullet,
+                                            images = currentImages
                                         )
                                     )
                                 }

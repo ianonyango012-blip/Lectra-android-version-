@@ -73,6 +73,7 @@ import com.example.data.document.WordDocumentModel
 import com.example.data.document.WordDocumentParser
 import com.example.data.document.WordParagraph
 import com.example.data.document.WordTable
+import coil.compose.AsyncImage
 import com.example.data.model.LectureMaterialEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -120,7 +121,7 @@ fun WordReaderScreen(
         withContext(Dispatchers.IO) {
             val file = DocumentStorageManager.resolveFile(context, material.fileUriString, material.title)
             if (file != null && file.exists()) {
-                val parsed = WordDocumentParser.parse(file, material.title)
+                val parsed = WordDocumentParser.parse(context, file, material.title)
                 docModel = parsed
                 isLoading = false
             } else {
@@ -391,7 +392,7 @@ fun WordReaderScreen(
                         itemsIndexed(model.paragraphs, key = { index, _ -> "para_$index" }) { index, para ->
                             val isMatch = matchingIndices.getOrNull(currentMatchIndex) == index
 
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
@@ -401,6 +402,18 @@ fun WordReaderScreen(
                                     )
                                     .padding(vertical = 2.dp)
                             ) {
+                                // Render images first
+                                para.images.forEach { imagePath ->
+                                    AsyncImage(
+                                        model = java.io.File(imagePath),
+                                        contentDescription = "Document image",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                }
+
                                 when {
                                     para.isHeading -> {
                                         val headingSize = when (para.headingLevel) {
@@ -414,7 +427,7 @@ fun WordReaderScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = if (para.headingLevel == 1) docBlue else textColor,
                                             lineHeight = 24.sp,
-                                            modifier = Modifier.padding(top = 8.dp)
+                                            modifier = Modifier.padding(top = if(para.images.isNotEmpty()) 0.dp else 8.dp)
                                         )
                                     }
 
@@ -438,7 +451,7 @@ fun WordReaderScreen(
                                         }
                                     }
 
-                                    else -> {
+                                    para.text.isNotBlank() -> {
                                         Text(
                                             text = highlightSearch(para.text, searchQuery),
                                             fontSize = 14.sp,
