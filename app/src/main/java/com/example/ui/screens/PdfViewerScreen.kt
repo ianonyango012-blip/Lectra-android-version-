@@ -323,7 +323,7 @@ fun PdfViewerScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
-                        top = if (isFullscreen) 0.dp else 64.dp,
+                        top = if (isFullscreen) 0.dp else 52.dp,
                         bottom = if (isFullscreen) 0.dp else 72.dp
                     )
             ) {
@@ -854,48 +854,62 @@ private fun TopReaderBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp),
+            .shadow(2.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
+        tonalElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // Back Button & Document Title
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = onBackClick,
-                    modifier = Modifier.testTag("pdf_back_button")
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("pdf_back_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                Column(modifier = Modifier.padding(start = 2.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 2.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Text(
                         text = title,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
                     // Page indicator button
                     Text(
-                        text = "Page $currentPage of $totalPages • Tap to Jump",
-                        fontSize = 11.sp,
+                        text = "Page $currentPage of $totalPages",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF7565F6),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .clickable { onJumpClick() }
                             .testTag("pdf_jump_button")
@@ -904,21 +918,30 @@ private fun TopReaderBar(
             }
 
             // Quick Actions
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy((-2).dp)
+            ) {
                 // Bookmark Toggle
                 IconButton(
                     onClick = onBookmarkClick,
-                    modifier = Modifier.testTag("pdf_bookmark_toggle")
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("pdf_bookmark_toggle")
                 ) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                         contentDescription = if (isBookmarked) "Remove Bookmark" else "Bookmark Page",
-                        tint = if (isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isBookmarked) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Night Mode Toggle
-                IconButton(onClick = onToggleNightMode) {
+                IconButton(
+                    onClick = onToggleNightMode,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = when (nightMode) {
                             ReaderNightMode.NORMAL -> Icons.Default.Nightlight
@@ -926,50 +949,71 @@ private fun TopReaderBar(
                             ReaderNightMode.SEPIA -> Icons.Default.ColorLens
                         },
                         contentDescription = "Reading Mode: ${nightMode.title}",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Fit Width Toggle
-                IconButton(onClick = onToggleFit) {
+                IconButton(
+                    onClick = onToggleFit,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.FitScreen,
                         contentDescription = if (isFitWidth) "Fit Margin" else "Fit Width",
-                        tint = if (isFitWidth) Color(0xFF7565F6) else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isFitWidth) Color(0xFF7565F6) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Share / External Viewer Menu Trigger
-                IconButton(onClick = onShareClick) {
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Share PDF",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                IconButton(onClick = onOpenExternalClick) {
+                IconButton(
+                    onClick = onOpenExternalClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.OpenInNew,
                         contentDescription = "Open in External Viewer",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
-                IconButton(onClick = onInfoClick) {
+                IconButton(
+                    onClick = onInfoClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Document Info",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Fullscreen
-                IconButton(onClick = onToggleFullscreen) {
+                IconButton(
+                    onClick = onToggleFullscreen,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Fullscreen,
                         contentDescription = "Fullscreen Mode",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
