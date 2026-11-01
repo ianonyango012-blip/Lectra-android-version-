@@ -30,6 +30,7 @@ import com.example.data.document.DocumentStorageManager
 import com.example.data.document.PowerPointPresentationParser
 import com.example.data.document.PresentationModel
 import com.example.data.document.SlideModel
+import com.example.data.document.SlideElement
 import com.example.data.model.LectureMaterialEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -371,68 +372,119 @@ private fun SlideCardView(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = slide.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Render embedded images
-            slide.images.forEach { imagePath ->
-                Spacer(modifier = Modifier.height(12.dp))
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(java.io.File(imagePath))
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Slide Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-
-            if (slide.bullets.isEmpty() && slide.images.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "(Title Slide / No bullet items)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (slide.elements.isNotEmpty()) {
+                for (element in slide.elements) {
+                    when (element) {
+                        is SlideElement.Text -> {
+                            if (element.isTitle) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = element.text,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFFFF6D00),
+                                        modifier = Modifier
+                                            .padding(top = 6.dp)
+                                            .size(8.dp)
+                                    ) {}
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = element.text,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        lineHeight = 24.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                        is SlideElement.Image -> {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(java.io.File(element.localPath))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Slide Image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        }
+                    }
                 }
             } else {
-                slide.bullets.forEach { bullet ->
-                    Row(
+                Text(
+                    text = slide.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                // Render embedded images
+                for (imagePath in slide.images) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(java.io.File(imagePath))
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Slide Image",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.Top
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                if (slide.bullets.isEmpty() && slide.images.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFFFF6D00),
-                            modifier = Modifier
-                                .padding(top = 6.dp)
-                                .size(8.dp)
-                        ) {}
-                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = bullet,
-                            style = MaterialTheme.typography.bodyLarge,
-                            lineHeight = 24.sp,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "(Title Slide / No bullet items)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                } else {
+                    for (bullet in slide.bullets) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFF6D00),
+                                modifier = Modifier
+                                    .padding(top = 6.dp)
+                                    .size(8.dp)
+                            ) {}
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = bullet,
+                                style = MaterialTheme.typography.bodyLarge,
+                                lineHeight = 24.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }

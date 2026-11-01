@@ -13,7 +13,8 @@ data class SlideModel(
     val title: String,
     val bullets: List<String>,
     val notes: String? = null,
-    val images: List<String> = emptyList() // List of ZIP entry paths for images
+    val images: List<String> = emptyList(), // List of ZIP entry paths for images
+    val elements: List<SlideElement> = emptyList() // Mixed text & images in exact chronological order
 )
 
 data class PresentationModel(
